@@ -1,11 +1,9 @@
-// app/(customer)/(tabs)/_layout.tsx - Updated with all tabs
+// app/(customer)/(tabs)/_layout.tsx - Updated with scan tab
 import { Tabs } from 'expo-router';
 import { Text } from 'react-native';
 
-
 export default function CustomerTabsLayout() {
   return (
-    
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#059669',
@@ -55,6 +53,16 @@ export default function CustomerTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="scan"
+        options={{
+          title: 'Scan',
+          headerTitle: 'Smart Eco Scanner',
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ fontSize: size * 0.8, color }}>📱</Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="impact"
         options={{
           title: 'Impact',
@@ -74,9 +82,6 @@ export default function CustomerTabsLayout() {
           ),
         }}
       />
-   
-    
     </Tabs>
- 
   );
 }
