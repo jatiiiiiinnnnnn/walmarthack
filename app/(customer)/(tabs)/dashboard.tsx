@@ -1,5 +1,5 @@
-// app/(customer)/(tabs)/dashboard.tsx - Enhanced Shopping Experience
-import React, { useState } from 'react';
+// app/(customer)/(tabs)/dashboard.tsx - Enhanced with More Organic Products & Cart Integration
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -28,8 +28,13 @@ interface Product {
   isEcoFriendly: boolean;
   isRecycled?: boolean;
   isRefurbished?: boolean;
+  isOrganic?: boolean;
+  isLocal?: boolean;
   ecoPoints: number;
   aisle: string;
+  nutritionScore?: string; // A, B, C, D, E for food products
+  origin?: string; // For local products
+  certifications?: string[];
   ecoAlternative?: {
     id: string;
     name: string;
@@ -47,6 +52,7 @@ interface Filter {
   name: string;
   active: boolean;
   icon: string;
+  count?: number;
 }
 
 export default function EnhancedShopTab() {
@@ -64,12 +70,16 @@ export default function EnhancedShopTab() {
     { id: 'organic', name: 'Organic', active: false, icon: '🥬' },
     { id: 'local', name: 'Local', active: false, icon: '🏘️' },
     { id: 'sale', name: 'On Sale', active: false, icon: '🏷️' },
+    { id: 'eco-friendly', name: 'Eco-Friendly', active: false, icon: '♻️' },
   ]);
   const [showEcoModal, setShowEcoModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [sortBy, setSortBy] = useState<'relevance' | 'price-low' | 'price-high' | 'eco-score'>('relevance');
+  const [cartItems, setCartItems] = useState<{[key: string]: number}>({});
+  const [userEcoPoints, setUserEcoPoints] = useState(847);
 
-  // Expanded product catalog
+  // Massively expanded product catalog with focus on organic section
   const allProducts: Product[] = [
     // SustainShop deals (recycled/refurbished/eco-friendly with super savings)
     {
@@ -86,6 +96,7 @@ export default function EnhancedShopTab() {
       isRefurbished: true,
       ecoPoints: 35,
       aisle: 'Electronics - Aisle 2A',
+      certifications: ['Apple Certified', 'Climate Neutral']
     },
     {
       id: 'sustain_2',
@@ -100,26 +111,13 @@ export default function EnhancedShopTab() {
       isEcoFriendly: true,
       isRecycled: true,
       ecoPoints: 45,
-      aisle: 'Garden Center - Aisle 20B'
+      aisle: 'Garden Center - Aisle 20B',
+      certifications: ['100% Recycled Materials', 'Weather Resistant']
     },
     {
       id: 'sustain_3',
-      name: 'Organic Cotton Bed Sheets',
-      brand: 'Pure Earth',
-      price: 79.99,
-      originalPrice: 119.99,
-      co2Impact: 4.2,
-      sustainabilityScore: 8.8,
-      category: 'Home',
-      inStock: true,
-      isEcoFriendly: true,
-      ecoPoints: 25,
-      aisle: 'Home - Aisle 15C'
-    },
-    {
-      id: 'sustain_4',
-      name: 'Solar Power Bank',
-      brand: 'SunCharge',
+      name: 'Solar Power Bank 20000mAh',
+      brand: 'SunCharge Pro',
       price: 39.99,
       originalPrice: 59.99,
       co2Impact: 2.1,
@@ -128,88 +126,381 @@ export default function EnhancedShopTab() {
       inStock: true,
       isEcoFriendly: true,
       ecoPoints: 30,
-      aisle: 'Electronics - Aisle 2C'
+      aisle: 'Electronics - Aisle 2C',
+      certifications: ['Solar Powered', 'Fast Charge Compatible']
     },
     {
-      id: 'sustain_5',
-      name: 'Bamboo Dinnerware Set',
+      id: 'sustain_4',
+      name: 'Bamboo Complete Dinnerware Set (16 pieces)',
       brand: 'EcoTable',
-      price: 24.99,
-      originalPrice: 39.99,
+      price: 34.99,
+      originalPrice: 49.99,
       co2Impact: 1.8,
       sustainabilityScore: 8.7,
       category: 'Kitchen',
       inStock: true,
       isEcoFriendly: true,
-      ecoPoints: 20,
-      aisle: 'Kitchen - Aisle 17A'
+      ecoPoints: 25,
+      aisle: 'Kitchen - Aisle 17A',
+      certifications: ['100% Bamboo', 'Dishwasher Safe']
     },
+
+    // EXPANDED ORGANIC SECTION - Fresh Produce
     {
-      id: 'sustain_6',
-      name: 'Reusable Food Storage Containers',
-      brand: 'ZeroWaste',
-      price: 34.99,
-      originalPrice: 49.99,
-      co2Impact: 3.2,
+      id: 'organic_1',
+      name: 'Organic Bananas (2 lbs)',
+      brand: 'Nature\'s Promise',
+      price: 2.48,
+      co2Impact: 0.8,
       sustainabilityScore: 8.9,
-      category: 'Kitchen',
+      category: 'Fresh Produce',
       inStock: true,
       isEcoFriendly: true,
-      ecoPoints: 28,
-      aisle: 'Kitchen - Aisle 17B'
+      isOrganic: true,
+      ecoPoints: 8,
+      aisle: 'Produce - Aisle 1A',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'Fair Trade'],
+      origin: 'Ecuador'
     },
     {
-      id: 'sustain_7',
-      name: 'Electric Bike (Refurbished)',
-      brand: 'GreenRide',
-      price: 899.99,
-      originalPrice: 1299.99,
-      co2Impact: 45.3,
-      sustainabilityScore: 9.5,
-      category: 'Transportation',
+      id: 'organic_2',
+      name: 'Organic Mixed Greens (5 oz)',
+      brand: 'Earthbound Farm',
+      price: 4.98,
+      co2Impact: 0.6,
+      sustainabilityScore: 9.2,
+      category: 'Fresh Produce',
       inStock: true,
       isEcoFriendly: true,
-      isRefurbished: true,
-      ecoPoints: 80,
-      aisle: 'Sports & Outdoors - Aisle 28A'
+      isOrganic: true,
+      ecoPoints: 12,
+      aisle: 'Produce - Aisle 1B',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'California Certified Organic'],
+      origin: 'California, USA'
     },
     {
-      id: 'sustain_8',
-      name: 'Compost Bin System',
-      brand: 'GreenCycle',
-      price: 59.99,
-      originalPrice: 89.99,
-      co2Impact: 5.1,
+      id: 'organic_3',
+      name: 'Organic Avocados (4 count)',
+      brand: 'Simple Truth Organic',
+      price: 5.98,
+      co2Impact: 1.2,
+      sustainabilityScore: 8.5,
+      category: 'Fresh Produce',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 15,
+      aisle: 'Produce - Aisle 1A',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic'],
+      origin: 'Mexico'
+    },
+    {
+      id: 'organic_4',
+      name: 'Organic Baby Carrots (2 lbs)',
+      brand: 'Grimmway Farms',
+      price: 3.48,
+      co2Impact: 0.9,
+      sustainabilityScore: 8.8,
+      category: 'Fresh Produce',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 10,
+      aisle: 'Produce - Aisle 1C',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'Non-GMO Project'],
+      origin: 'California, USA'
+    },
+    {
+      id: 'organic_5',
+      name: 'Organic Sweet Bell Peppers (3 pack)',
+      brand: 'Nature\'s Promise',
+      price: 4.48,
+      co2Impact: 1.1,
+      sustainabilityScore: 8.6,
+      category: 'Fresh Produce',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 12,
+      aisle: 'Produce - Aisle 1B',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic'],
+      origin: 'Canada'
+    },
+    {
+      id: 'organic_6',
+      name: 'Organic Strawberries (1 lb)',
+      brand: 'Driscoll\'s Organic',
+      price: 5.98,
+      co2Impact: 1.0,
+      sustainabilityScore: 8.7,
+      category: 'Fresh Produce',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 18,
+      aisle: 'Produce - Aisle 1A',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'California Certified Organic'],
+      origin: 'California, USA'
+    },
+
+    // ORGANIC DAIRY & EGGS
+    {
+      id: 'organic_7',
+      name: 'Organic Whole Milk (Half Gallon)',
+      brand: 'Horizon Organic',
+      price: 4.98,
+      co2Impact: 2.1,
+      sustainabilityScore: 7.8,
+      category: 'Dairy',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 15,
+      aisle: 'Dairy - Aisle 9A',
+      nutritionScore: 'B',
+      certifications: ['USDA Organic', 'DHA Omega-3'],
+      origin: 'Local Dairy Farms'
+    },
+    {
+      id: 'organic_8',
+      name: 'Organic Large Eggs (12 count)',
+      brand: 'Vital Farms',
+      price: 6.48,
+      co2Impact: 1.8,
+      sustainabilityScore: 8.9,
+      category: 'Dairy',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 20,
+      aisle: 'Dairy - Aisle 9B',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'Pasture-Raised', 'Certified Humane'],
+      origin: 'Family Farms, USA'
+    },
+    {
+      id: 'organic_9',
+      name: 'Organic Greek Yogurt (32 oz)',
+      brand: 'Stonyfield Organic',
+      price: 5.98,
+      co2Impact: 1.6,
+      sustainabilityScore: 8.4,
+      category: 'Dairy',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 18,
+      aisle: 'Dairy - Aisle 9A',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'Live Active Cultures'],
+      origin: 'New Hampshire, USA'
+    },
+
+    // ORGANIC PANTRY STAPLES
+    {
+      id: 'organic_10',
+      name: 'Organic Quinoa (2 lbs)',
+      brand: 'Ancient Harvest',
+      price: 8.98,
+      co2Impact: 1.4,
+      sustainabilityScore: 9.1,
+      category: 'Pantry',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 22,
+      aisle: 'Pantry - Aisle 15B',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'Gluten-Free', 'Non-GMO'],
+      origin: 'Bolivia'
+    },
+    {
+      id: 'organic_11',
+      name: 'Organic Brown Rice (2 lbs)',
+      brand: 'Lundberg Family Farms',
+      price: 4.98,
+      co2Impact: 1.2,
+      sustainabilityScore: 8.8,
+      category: 'Pantry',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 15,
+      aisle: 'Pantry - Aisle 15A',
+      nutritionScore: 'B',
+      certifications: ['USDA Organic', 'Eco-Farmed'],
+      origin: 'California, USA'
+    },
+    {
+      id: 'organic_12',
+      name: 'Organic Whole Wheat Pasta (1 lb)',
+      brand: 'Bionaturae',
+      price: 3.48,
+      co2Impact: 0.8,
+      sustainabilityScore: 8.6,
+      category: 'Pantry',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 12,
+      aisle: 'Pantry - Aisle 14A',
+      nutritionScore: 'B',
+      certifications: ['USDA Organic', 'Bronze Die Cut'],
+      origin: 'Italy'
+    },
+    {
+      id: 'organic_13',
+      name: 'Organic Black Beans (15 oz can)',
+      brand: 'Amy\'s Organic',
+      price: 2.48,
+      co2Impact: 0.6,
+      sustainabilityScore: 8.9,
+      category: 'Pantry',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 10,
+      aisle: 'Pantry - Aisle 16A',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'BPA-Free Can'],
+      origin: 'USA'
+    },
+    {
+      id: 'organic_14',
+      name: 'Organic Coconut Oil (14 oz)',
+      brand: 'Spectrum Organic',
+      price: 7.98,
+      co2Impact: 1.1,
+      sustainabilityScore: 8.3,
+      category: 'Pantry',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 20,
+      aisle: 'Pantry - Aisle 16B',
+      nutritionScore: 'C',
+      certifications: ['USDA Organic', 'Unrefined', 'Fair Trade'],
+      origin: 'Philippines'
+    },
+
+    // ORGANIC SNACKS & BEVERAGES
+    {
+      id: 'organic_15',
+      name: 'Organic Apple Juice (64 oz)',
+      brand: 'Simply Organic',
+      price: 4.98,
+      co2Impact: 1.3,
+      sustainabilityScore: 8.2,
+      category: 'Beverages',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 15,
+      aisle: 'Beverages - Aisle 13A',
+      nutritionScore: 'C',
+      certifications: ['USDA Organic', 'Not From Concentrate'],
+      origin: 'Washington State, USA'
+    },
+    {
+      id: 'organic_16',
+      name: 'Organic Green Tea (20 bags)',
+      brand: 'Traditional Medicinals',
+      price: 5.48,
+      co2Impact: 0.4,
+      sustainabilityScore: 9.0,
+      category: 'Beverages',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 18,
+      aisle: 'Beverages - Aisle 13B',
+      nutritionScore: 'A',
+      certifications: ['USDA Organic', 'Fair Trade', 'Non-GMO'],
+      origin: 'China'
+    },
+    {
+      id: 'organic_17',
+      name: 'Organic Granola Bars (6 count)',
+      brand: 'Kashi Organic',
+      price: 4.98,
+      co2Impact: 1.0,
+      sustainabilityScore: 8.4,
+      category: 'Snacks',
+      inStock: true,
+      isEcoFriendly: true,
+      isOrganic: true,
+      ecoPoints: 15,
+      aisle: 'Snacks - Aisle 11A',
+      nutritionScore: 'B',
+      certifications: ['USDA Organic', 'Non-GMO Project'],
+      origin: 'USA'
+    },
+
+    // LOCAL PRODUCTS
+    {
+      id: 'local_1',
+      name: 'Local Honey (12 oz)',
+      brand: 'Delhi Bee Farm',
+      price: 8.98,
+      co2Impact: 0.3,
       sustainabilityScore: 9.3,
-      category: 'Garden',
+      category: 'Pantry',
       inStock: true,
       isEcoFriendly: true,
-      ecoPoints: 35,
-      aisle: 'Garden Center - Aisle 20C'
+      isLocal: true,
+      ecoPoints: 25,
+      aisle: 'Pantry - Aisle 16C',
+      nutritionScore: 'C',
+      certifications: ['Raw Honey', 'Local Producer'],
+      origin: 'Delhi, India (5 miles away)'
     },
-    
-    // Regular products with eco alternatives (NO ECO POINTS for regular items)
+    {
+      id: 'local_2',
+      name: 'Local Farm Fresh Eggs (12 count)',
+      brand: 'Gurgaon Family Farm',
+      price: 4.98,
+      co2Impact: 0.8,
+      sustainabilityScore: 9.0,
+      category: 'Dairy',
+      inStock: true,
+      isEcoFriendly: true,
+      isLocal: true,
+      ecoPoints: 20,
+      aisle: 'Dairy - Aisle 9C',
+      nutritionScore: 'A',
+      certifications: ['Free Range', 'Local Farm'],
+      origin: 'Gurgaon, India (15 miles away)'
+    },
+
+    // REGULAR PRODUCTS WITH ECO ALTERNATIVES
     {
       id: 'reg_1',
       name: 'Regular Pasta (1 lb)',
-      brand: 'PastaPlus',
+      brand: 'Barilla',
       price: 1.49,
       co2Impact: 1.8,
       sustainabilityScore: 4.2,
-      category: 'Food',
+      category: 'Pantry',
       inStock: true,
       isEcoFriendly: false,
       ecoPoints: 0,
       aisle: 'Pasta & Rice - Aisle 14A',
+      nutritionScore: 'C',
       ecoAlternative: {
         id: 'reg_1_alt',
         name: 'Organic Whole Wheat Pasta',
-        brand: 'Nature\'s Best',
-        price: 2.29,
-        priceIncrease: 0.80,
-        co2Impact: 0.9,
-        ecoPoints: 8,
-        features: ['Organic certified', 'Whole grain', 'Sustainable farming']
+        brand: 'Bionaturae',
+        price: 3.48,
+        priceIncrease: 1.99,
+        co2Impact: 0.8,
+        ecoPoints: 12,
+        features: ['USDA Organic', 'Whole grain', 'Sustainable farming', 'Better nutrition']
       }
     },
     {
@@ -237,101 +528,9 @@ export default function EnhancedShopTab() {
     },
     {
       id: 'reg_3',
-      name: 'Regular Detergent',
-      brand: 'CleanMax',
-      price: 8.99,
-      co2Impact: 3.4,
-      sustainabilityScore: 4.1,
-      category: 'Household',
-      inStock: true,
-      isEcoFriendly: false,
-      ecoPoints: 0,
-      aisle: 'Household - Aisle 18B',
-      ecoAlternative: {
-        id: 'reg_3_alt',
-        name: 'Concentrated Eco Detergent',
-        brand: 'GreenClean',
-        price: 7.49,
-        priceIncrease: -1.50,
-        co2Impact: 1.1,
-        ecoPoints: 15,
-        features: ['Biodegradable', 'Plant-based', 'Concentrated formula', 'Less packaging']
-      }
-    },
-    {
-      id: 'reg_4',
-      name: 'Cotton T-Shirt',
-      brand: 'BasicWear',
-      price: 9.99,
-      co2Impact: 8.1,
-      sustainabilityScore: 3.8,
-      category: 'Clothing',
-      inStock: true,
-      isEcoFriendly: false,
-      ecoPoints: 0,
-      aisle: 'Clothing - Aisle 25A',
-      ecoAlternative: {
-        id: 'reg_4_alt',
-        name: 'Organic Cotton T-Shirt',
-        brand: 'EarthWear',
-        price: 16.99,
-        priceIncrease: 7.00,
-        co2Impact: 3.2,
-        ecoPoints: 18,
-        features: ['GOTS certified', 'Fair trade', 'Pesticide-free']
-      }
-    },
-    {
-      id: 'reg_5',
-      name: 'Regular Notebook Pack',
-      brand: 'SchoolPlus',
-      price: 5.99,
-      co2Impact: 2.8,
-      sustainabilityScore: 3.5,
-      category: 'School & Office',
-      inStock: true,
-      isEcoFriendly: false,
-      ecoPoints: 0,
-      aisle: 'School Supplies - Aisle 22B',
-      ecoAlternative: {
-        id: 'reg_5_alt',
-        name: 'Recycled Paper Notebook Pack',
-        brand: 'TreeSaver',
-        price: 4.99,
-        priceIncrease: -1.00,
-        co2Impact: 1.1,
-        ecoPoints: 12,
-        features: ['100% recycled paper', 'FSC certified', 'Plastic-free']
-      }
-    },
-    {
-      id: 'reg_6',
-      name: 'Regular Shampoo',
-      brand: 'HairCare',
-      price: 6.49,
-      co2Impact: 2.3,
-      sustainabilityScore: 3.9,
-      category: 'Personal Care',
-      inStock: true,
-      isEcoFriendly: false,
-      ecoPoints: 0,
-      aisle: 'Personal Care - Aisle 19A',
-      ecoAlternative: {
-        id: 'reg_6_alt',
-        name: 'Solid Shampoo Bar',
-        brand: 'EcoHair',
-        price: 8.99,
-        priceIncrease: 2.50,
-        co2Impact: 0.8,
-        ecoPoints: 14,
-        features: ['Zero plastic', 'Natural ingredients', 'Lasts 2x longer']
-      }
-    },
-    {
-      id: 'reg_7',
-      name: 'Regular Coffee (Ground)',
-      brand: 'MorningBrew',
-      price: 7.99,
+      name: 'Regular Ground Coffee (12 oz)',
+      brand: 'Folgers',
+      price: 4.98,
       co2Impact: 4.2,
       sustainabilityScore: 3.7,
       category: 'Beverages',
@@ -339,43 +538,73 @@ export default function EnhancedShopTab() {
       isEcoFriendly: false,
       ecoPoints: 0,
       aisle: 'Coffee & Tea - Aisle 13B',
+      nutritionScore: 'C',
       ecoAlternative: {
-        id: 'reg_7_alt',
+        id: 'reg_3_alt',
         name: 'Fair Trade Organic Coffee',
-        brand: 'EthicalBeans',
-        price: 11.99,
+        brand: 'Equal Exchange',
+        price: 8.98,
         priceIncrease: 4.00,
         co2Impact: 2.1,
-        ecoPoints: 16,
-        features: ['Fair trade certified', 'Organic', 'Carbon neutral shipping']
+        ecoPoints: 20,
+        features: ['Fair trade certified', 'USDA Organic', 'Carbon neutral shipping', 'Small farmer support']
       }
     },
     {
-      id: 'reg_8',
-      name: 'Disposable Razors (Pack)',
-      brand: 'QuickShave',
-      price: 3.99,
-      co2Impact: 1.9,
-      sustainabilityScore: 2.8,
-      category: 'Personal Care',
+      id: 'reg_4',
+      name: 'Regular Toilet Paper (12 rolls)',
+      brand: 'Charmin',
+      price: 12.99,
+      co2Impact: 3.8,
+      sustainabilityScore: 3.5,
+      category: 'Household',
       inStock: true,
       isEcoFriendly: false,
       ecoPoints: 0,
-      aisle: 'Personal Care - Aisle 19C',
+      aisle: 'Household - Aisle 18A',
       ecoAlternative: {
-        id: 'reg_8_alt',
-        name: 'Safety Razor + Blades',
-        brand: 'LastingShave',
-        price: 24.99,
-        priceIncrease: 21.00,
-        co2Impact: 0.4,
-        ecoPoints: 22,
-        features: ['Lifetime razor', 'Recyclable blades', 'Plastic-free', 'Saves money long-term']
+        id: 'reg_4_alt',
+        name: 'Bamboo Toilet Paper',
+        brand: 'Cloud Paper',
+        price: 15.99,
+        priceIncrease: 3.00,
+        co2Impact: 1.2,
+        ecoPoints: 18,
+        features: ['100% Bamboo', 'Plastic-free packaging', 'Tree-free', 'Hypoallergenic']
       }
     }
   ];
 
-  // Filter products based on search and active filters
+  // Update filter counts
+  useEffect(() => {
+    const updatedFilters = activeFilters.map(filter => {
+      let count = 0;
+      switch (filter.id) {
+        case 'all':
+          count = allProducts.length;
+          break;
+        case 'sustainshop':
+          count = allProducts.filter(p => p.isEcoFriendly || p.isRecycled || p.isRefurbished).length;
+          break;
+        case 'organic':
+          count = allProducts.filter(p => p.isOrganic).length;
+          break;
+        case 'local':
+          count = allProducts.filter(p => p.isLocal).length;
+          break;
+        case 'sale':
+          count = allProducts.filter(p => p.originalPrice).length;
+          break;
+        case 'eco-friendly':
+          count = allProducts.filter(p => p.isEcoFriendly).length;
+          break;
+      }
+      return { ...filter, count };
+    });
+    setActiveFilters(updatedFilters);
+  }, []);
+
+  // Filter and sort products
   const getFilteredProducts = () => {
     let filtered = allProducts;
 
@@ -384,30 +613,51 @@ export default function EnhancedShopTab() {
       filtered = filtered.filter(product =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         product.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchQuery.toLowerCase())
+        product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (product.certifications && product.certifications.some(cert => 
+          cert.toLowerCase().includes(searchQuery.toLowerCase())
+        ))
       );
     }
 
     // Apply category filters
-    const sustainShopActive = activeFilters.find(f => f.id === 'sustainshop')?.active;
-    const organicActive = activeFilters.find(f => f.id === 'organic')?.active;
-    const localActive = activeFilters.find(f => f.id === 'local')?.active;
-    const saleActive = activeFilters.find(f => f.id === 'sale')?.active;
-
-    if (sustainShopActive) {
-      filtered = filtered.filter(product => 
-        product.isEcoFriendly || product.isRecycled || product.isRefurbished
-      );
+    const activeFilterIds = activeFilters.filter(f => f.active && f.id !== 'all').map(f => f.id);
+    
+    if (activeFilterIds.length > 0) {
+      filtered = filtered.filter(product => {
+        return activeFilterIds.some(filterId => {
+          switch (filterId) {
+            case 'sustainshop':
+              return product.isEcoFriendly || product.isRecycled || product.isRefurbished;
+            case 'organic':
+              return product.isOrganic;
+            case 'local':
+              return product.isLocal;
+            case 'sale':
+              return !!product.originalPrice;
+            case 'eco-friendly':
+              return product.isEcoFriendly;
+            default:
+              return false;
+          }
+        });
+      });
     }
 
-    if (organicActive) {
-      filtered = filtered.filter(product => 
-        product.name.toLowerCase().includes('organic')
-      );
-    }
-
-    if (saleActive) {
-      filtered = filtered.filter(product => product.originalPrice);
+    // Apply sorting
+    switch (sortBy) {
+      case 'price-low':
+        filtered.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-high':
+        filtered.sort((a, b) => b.price - a.price);
+        break;
+      case 'eco-score':
+        filtered.sort((a, b) => b.sustainabilityScore - a.sustainabilityScore);
+        break;
+      default:
+        // Keep relevance order (default order)
+        break;
     }
 
     return filtered;
@@ -429,6 +679,17 @@ export default function EnhancedShopTab() {
     return '#EF4444';
   };
 
+  const getNutritionColor = (score: string) => {
+    switch (score) {
+      case 'A': return '#10B981';
+      case 'B': return '#22C55E';
+      case 'C': return '#F59E0B';
+      case 'D': return '#F97316';
+      case 'E': return '#EF4444';
+      default: return '#6B7280';
+    }
+  };
+
   const showEcoAlternative = (product: Product) => {
     setSelectedProduct(product);
     setShowEcoModal(true);
@@ -438,12 +699,33 @@ export default function EnhancedShopTab() {
     const productToAdd = isEcoAlternative && product.ecoAlternative ? 
       { ...product, ...product.ecoAlternative } : product;
     
+    const currentQuantity = cartItems[productToAdd.id] || 0;
+    setCartItems(prev => ({
+      ...prev,
+      [productToAdd.id]: currentQuantity + 1
+    }));
+
+    // Award EcoPoints
+    if (productToAdd.ecoPoints > 0) {
+      setUserEcoPoints(prev => prev + productToAdd.ecoPoints);
+    }
+    
     Alert.alert(
-      'Added to Cart! 🛒',
-      `${productToAdd.name} has been added to your cart.\n\n💰 Price: ${productToAdd.price}\n💰 EcoCoins: +${productToAdd.ecoPoints}${productToAdd.ecoPoints > 0 ? ' (Spend in EcoRewards!)' : ''}`,
-      [{ text: 'Continue Shopping', style: 'default' }]
+      isEcoAlternative ? '🌱 Eco Choice Added!' : 'Added to Cart! 🛒',
+      `${productToAdd.name} has been added to your cart.\n\n💰 Price: $${productToAdd.price}${productToAdd.ecoPoints > 0 ? `\n🌟 EcoPoints: +${productToAdd.ecoPoints}` : ''}${isEcoAlternative ? '\n\n🎉 Great eco-friendly choice!' : ''}`,
+      [
+        { text: 'Continue Shopping', style: 'default' },
+        { text: 'View Cart', onPress: () => {
+          // Navigate to cart - in real app would use router
+          Alert.alert('Navigation', 'Would navigate to cart tab');
+        }}
+      ]
     );
     setShowEcoModal(false);
+  };
+
+  const getCartItemCount = () => {
+    return Object.values(cartItems).reduce((sum, quantity) => sum + quantity, 0);
   };
 
   const ProductCard = ({ product }: { product: Product }) => (
@@ -457,7 +739,17 @@ export default function EnhancedShopTab() {
             </Text>
           </View>
         )}
-        {product.isEcoFriendly && (
+        {product.isOrganic && (
+          <View style={styles.organicBadge}>
+            <Text style={styles.organicBadgeText}>🥬 Organic</Text>
+          </View>
+        )}
+        {product.isLocal && (
+          <View style={styles.localBadge}>
+            <Text style={styles.localBadgeText}>🏘️ Local</Text>
+          </View>
+        )}
+        {product.isEcoFriendly && !product.isOrganic && (
           <View style={styles.ecoBadge}>
             <Text style={styles.ecoBadgeText}>🌱 Eco</Text>
           </View>
@@ -474,12 +766,35 @@ export default function EnhancedShopTab() {
         <Text style={styles.productBrand}>{product.brand}</Text>
         <Text style={styles.productName}>{product.name}</Text>
         
+        {/* Certifications */}
+        {product.certifications && product.certifications.length > 0 && (
+          <View style={styles.certificationsContainer}>
+            {product.certifications.slice(0, 2).map((cert, index) => (
+              <View key={index} style={styles.certificationTag}>
+                <Text style={styles.certificationText}>{cert}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Origin for local/organic products */}
+        {product.origin && (
+          <Text style={styles.originText}>📍 {product.origin}</Text>
+        )}
+        
         <View style={styles.productMetrics}>
           <View style={styles.priceRow}>
             {product.originalPrice && (
               <Text style={styles.originalPrice}>${product.originalPrice}</Text>
             )}
             <Text style={styles.currentPrice}>${product.price}</Text>
+            {product.nutritionScore && (
+              <View style={[styles.nutritionBadge, { backgroundColor: getNutritionColor(product.nutritionScore) + '20', borderColor: getNutritionColor(product.nutritionScore) }]}>
+                <Text style={[styles.nutritionText, { color: getNutritionColor(product.nutritionScore) }]}>
+                  {product.nutritionScore}
+                </Text>
+              </View>
+            )}
           </View>
           
           <View style={styles.sustainabilityRow}>
@@ -506,7 +821,9 @@ export default function EnhancedShopTab() {
           style={styles.addToCartButton}
           onPress={() => addToCart(product)}
         >
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+          <Text style={styles.addToCartText}>
+            Add to Cart{cartItems[product.id] ? ` (${cartItems[product.id]})` : ''}
+          </Text>
         </TouchableOpacity>
         
         {product.ecoAlternative && (
@@ -531,7 +848,7 @@ export default function EnhancedShopTab() {
             <Text style={styles.modalBackButton}>✕ Close</Text>
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Eco Alternative</Text>
-          <View style={styles.modalHeaderRight} />
+          <Text style={styles.modalPoints}>💰 {userEcoPoints} points</Text>
         </View>
 
         {selectedProduct?.ecoAlternative && (
@@ -590,8 +907,8 @@ export default function EnhancedShopTab() {
                 <Text style={styles.benefitIcon}>💸</Text>
                 <Text style={styles.benefitText}>
                   {selectedProduct.ecoAlternative.priceIncrease >= 0 
-                    ? `Only ${selectedProduct.ecoAlternative.priceIncrease.toFixed(2)} more for sustainability`
-                    : `Save ${Math.abs(selectedProduct.ecoAlternative.priceIncrease).toFixed(2)} while being eco-friendly`
+                    ? `Only $${selectedProduct.ecoAlternative.priceIncrease.toFixed(2)} more for sustainability`
+                    : `Save $${Math.abs(selectedProduct.ecoAlternative.priceIncrease).toFixed(2)} while being eco-friendly`
                   }
                 </Text>
               </View>
@@ -623,8 +940,8 @@ export default function EnhancedShopTab() {
               >
                 <Text style={styles.chooseEcoText}>
                   🌱 Choose Eco Alternative {selectedProduct.ecoAlternative.priceIncrease >= 0 
-                    ? `(+${selectedProduct.ecoAlternative.priceIncrease.toFixed(2)})` 
-                    : `(-${Math.abs(selectedProduct.ecoAlternative.priceIncrease).toFixed(2)})`
+                    ? `(+$${selectedProduct.ecoAlternative.priceIncrease.toFixed(2)})` 
+                    : `(-$${Math.abs(selectedProduct.ecoAlternative.priceIncrease).toFixed(2)})`
                   } • 💰{selectedProduct.ecoAlternative.ecoPoints} EcoCoins
                 </Text>
               </TouchableOpacity>
@@ -639,6 +956,8 @@ export default function EnhancedShopTab() {
     deal && deal.status === 'pending'
   );
 
+  const filteredProducts = getFilteredProducts();
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -646,6 +965,17 @@ export default function EnhancedShopTab() {
         <Text style={styles.storeText}>Walmart</Text>
         <Text style={styles.locationText}>📍 Supercenter - Delhi</Text>
         <Text style={styles.tagline}>Save Money. Live Better. Go Green.</Text>
+        
+        <View style={styles.headerStats}>
+          <View style={styles.headerStat}>
+            <Text style={styles.headerStatValue}>💰 {userEcoPoints}</Text>
+            <Text style={styles.headerStatLabel}>EcoPoints</Text>
+          </View>
+          <View style={styles.headerStat}>
+            <Text style={styles.headerStatValue}>🛒 {getCartItemCount()}</Text>
+            <Text style={styles.headerStatLabel}>Cart Items</Text>
+          </View>
+        </View>
         
         {availableRescueDeals.length > 0 && (
           <View style={styles.liveCounter}>
@@ -662,7 +992,7 @@ export default function EnhancedShopTab() {
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search products, brands, categories..."
+            placeholder="Search products, brands, certifications..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#9CA3AF"
@@ -674,20 +1004,46 @@ export default function EnhancedShopTab() {
           )}
         </View>
 
-        {/* View Mode Toggle */}
-        <View style={styles.viewModeContainer}>
-          <TouchableOpacity 
-            style={[styles.viewModeButton, viewMode === 'grid' && styles.viewModeActive]}
-            onPress={() => setViewMode('grid')}
-          >
-            <Text style={styles.viewModeIcon}>⊞</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.viewModeButton, viewMode === 'list' && styles.viewModeActive]}
-            onPress={() => setViewMode('list')}
-          >
-            <Text style={styles.viewModeIcon}>☰</Text>
-          </TouchableOpacity>
+        {/* View Mode & Sort Toggle */}
+        <View style={styles.controlsContainer}>
+          <View style={styles.viewModeContainer}>
+            <TouchableOpacity 
+              style={[styles.viewModeButton, viewMode === 'grid' && styles.viewModeActive]}
+              onPress={() => setViewMode('grid')}
+            >
+              <Text style={styles.viewModeIcon}>⊞</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.viewModeButton, viewMode === 'list' && styles.viewModeActive]}
+              onPress={() => setViewMode('list')}
+            >
+              <Text style={styles.viewModeIcon}>☰</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.sortContainer}>
+            <TouchableOpacity 
+              style={styles.sortButton}
+              onPress={() => {
+                const sortOptions = [
+                  { id: 'relevance', name: 'Relevance' },
+                  { id: 'price-low', name: 'Price: Low to High' },
+                  { id: 'price-high', name: 'Price: High to Low' },
+                  { id: 'eco-score', name: 'Eco Score: High to Low' }
+                ];
+                Alert.alert(
+                  'Sort by',
+                  'Choose sorting option',
+                  sortOptions.map(option => ({
+                    text: option.name,
+                    onPress: () => setSortBy(option.id as any)
+                  }))
+                );
+              }}
+            >
+              <Text style={styles.sortText}>Sort ↕️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -703,6 +1059,7 @@ export default function EnhancedShopTab() {
               <Text style={styles.filterIcon}>{filter.icon}</Text>
               <Text style={[styles.filterText, filter.active && styles.filterTextActive]}>
                 {filter.name}
+                {filter.count !== undefined && ` (${filter.count})`}
               </Text>
               {filter.id === 'sustainshop' && filter.active && (
                 <View style={styles.sustainShopBadge}>
@@ -721,15 +1078,25 @@ export default function EnhancedShopTab() {
             {activeFilters.find(f => f.active && f.id !== 'all')?.name || 'All Products'}
           </Text>
           <Text style={styles.resultsCount}>
-            {getFilteredProducts().length} items
+            {filteredProducts.length} items {sortBy !== 'relevance' && `• Sorted by ${sortBy.replace('-', ' ')}`}
           </Text>
         </View>
         
         <View style={viewMode === 'grid' ? styles.productsGrid : styles.productsList}>
-          {getFilteredProducts().map(product => (
+          {filteredProducts.map(product => (
             <ProductCard key={product.id} product={product} />
           ))}
         </View>
+
+        {filteredProducts.length === 0 && (
+          <View style={styles.noResults}>
+            <Text style={styles.noResultsIcon}>🔍</Text>
+            <Text style={styles.noResultsTitle}>No products found</Text>
+            <Text style={styles.noResultsText}>
+              Try adjusting your search or filters
+            </Text>
+          </View>
+        )}
       </View>
 
       <EcoAlternativeModal />
@@ -764,13 +1131,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
+    marginBottom: 16,
+  },
+  headerStats: {
+    flexDirection: 'row',
+    gap: 32,
+    marginBottom: 12,
+  },
+  headerStat: {
+    alignItems: 'center',
+  },
+  headerStatValue: {
+    color: '#FFC220',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  headerStatLabel: {
+    color: '#E6F3FF',
+    fontSize: 12,
   },
   liveCounter: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: 12,
   },
   liveCounterText: {
     color: '#FFC220',
@@ -778,21 +1162,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   searchSection: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: 'white',
-    alignItems: 'center',
-    gap: 12,
   },
   searchContainer: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
+    marginBottom: 12,
   },
   searchIcon: {
     fontSize: 16,
@@ -808,6 +1189,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#9CA3AF',
     marginLeft: 8,
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   viewModeContainer: {
     flexDirection: 'row',
@@ -831,6 +1217,21 @@ const styles = StyleSheet.create({
   viewModeIcon: {
     fontSize: 16,
     color: '#6B7280',
+  },
+  sortContainer: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  sortButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  sortText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   filtersSection: {
     backgroundColor: 'white',
@@ -947,6 +1348,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  organicBadge: {
+    backgroundColor: '#22C55E',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  organicBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  localBadge: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  localBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   ecoBadge: {
     backgroundColor: '#10B981',
     borderRadius: 8,
@@ -984,6 +1407,29 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 8,
   },
+  certificationsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 6,
+  },
+  certificationTag: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  certificationText: {
+    fontSize: 9,
+    color: '#059669',
+    fontWeight: '500',
+  },
+  originText: {
+    fontSize: 11,
+    color: '#3B82F6',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
   productMetrics: {
     marginBottom: 8,
   },
@@ -1002,6 +1448,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#0071CE',
+  },
+  nutritionBadge: {
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  nutritionText: {
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   sustainabilityRow: {
     flexDirection: 'row',
@@ -1054,6 +1510,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  noResults: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+  },
+  noResultsIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  noResultsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  noResultsText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
   modalContainer: {
     flex: 1,
     backgroundColor: '#F9FAFB',
@@ -1077,8 +1553,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1F2937',
   },
-  modalHeaderRight: {
-    width: 60,
+  modalPoints: {
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '600',
   },
   modalContent: {
     flex: 1,
