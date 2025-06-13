@@ -1,22 +1,23 @@
-// app/(auth)/index.tsx - REACT NATIVE VERSION
+// app/(auth)/index.tsx - Fixed to Save Real User Data
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
   Alert,
+  Dimensions,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useAppData } from '../contexts/AppDataContext';
 
-// Note: You'll need to install react-native-vector-icons or use expo-vector-icons
-// For now, I'll use text instead of icons
+const { height: screenHeight } = Dimensions.get('window');
 
 export default function AuthPage() {
+  const { updateUserProfile } = useAppData();
   const [isLogin, setIsLogin] = useState(true);
   const [userType, setUserType] = useState('customer'); // 'customer' or 'employee'
   const [showPassword, setShowPassword] = useState(false);
@@ -61,6 +62,18 @@ export default function AuthPage() {
     try {
       console.log('Form submitted:', { userType, isLogin, formData });
 
+      // Update user profile with real data from form
+      const userData = {
+        name: isLogin ? 
+          formData.email.split('@')[0] : // For login, use email prefix as name if no first/last name
+          `${formData.firstName} ${formData.lastName}`, // For signup, use first + last name
+        email: formData.email,
+        phone: '+91 98765 43210', // Default phone, can be updated later
+        location: 'Delhi, India', // Default location, can be updated later
+      };
+
+      updateUserProfile(userData);
+
       // Navigate to appropriate dashboard based on user type
       if (userType === 'customer') {
         router.replace('/(customer)/(tabs)/dashboard');
@@ -74,21 +87,18 @@ export default function AuthPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
+      <StatusBar style="light" />
+      <View style={styles.content}>
+        {/* Compact Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>EC</Text>
+            <Text style={styles.logoEmoji}>🌱</Text>
           </View>
-          <Text style={styles.title}>EcoConnect</Text>
-          <Text style={styles.subtitle}>Together for a greener tomorrow</Text>
+          <Text style={styles.title}>WGreen</Text>
+          <Text style={styles.subtitle}>Sustainable future starts here</Text>
         </View>
 
-        {/* User Type Toggle */}
+        {/* User Type Selection - Compact */}
         <View style={styles.userTypeContainer}>
           <TouchableOpacity
             onPress={() => setUserType('customer')}
@@ -97,9 +107,7 @@ export default function AuthPage() {
               userType === 'customer' ? styles.userTypeButtonActive : styles.userTypeButtonInactive
             ]}
           >
-            <View style={[styles.userTypeIconContainer, userType === 'customer' && styles.userTypeIconActive]}>
-              <Text style={[styles.userTypeIconText, userType === 'customer' && styles.userTypeIconTextActive]}>C</Text>
-            </View>
+            <Text style={styles.userTypeIcon}>👤</Text>
             <Text style={[
               styles.userTypeText,
               userType === 'customer' ? styles.userTypeTextActive : styles.userTypeTextInactive
@@ -115,9 +123,7 @@ export default function AuthPage() {
               userType === 'employee' ? styles.userTypeButtonActive : styles.userTypeButtonInactive
             ]}
           >
-            <View style={[styles.userTypeIconContainer, userType === 'employee' && styles.userTypeIconActive]}>
-              <Text style={[styles.userTypeIconText, userType === 'employee' && styles.userTypeIconTextActive]}>E</Text>
-            </View>
+            <Text style={styles.userTypeIcon}>👔</Text>
             <Text style={[
               styles.userTypeText,
               userType === 'employee' ? styles.userTypeTextActive : styles.userTypeTextInactive
@@ -127,7 +133,7 @@ export default function AuthPage() {
           </TouchableOpacity>
         </View>
 
-        {/* Main Form Card */}
+        {/* Main Form Card - Compact */}
         <View style={styles.formCard}>
           {/* Login/Signup Toggle */}
           <View style={styles.authToggle}>
@@ -157,48 +163,52 @@ export default function AuthPage() {
                 styles.authToggleText,
                 !isLogin ? styles.authToggleTextActive : styles.authToggleTextInactive
               ]}>
-                Sign Up
+                Join Us
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Form Fields */}
+          {/* Form Fields - Compact */}
           <View style={styles.formFields}>
             {/* Name fields for signup */}
             {!isLogin && (
               <View style={styles.nameFieldsContainer}>
                 <View style={styles.nameField}>
-                  <Text style={styles.label}>First Name</Text>
-                  <TextInput
-                    value={formData.firstName}
-                    onChangeText={(value) => handleInputChange('firstName', value)}
-                    style={styles.input}
-                    placeholder="John"
-                    placeholderTextColor="#9CA3AF"
-                  />
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputIcon}>👤</Text>
+                    <TextInput
+                      value={formData.firstName}
+                      onChangeText={(value) => handleInputChange('firstName', value)}
+                      style={styles.input}
+                      placeholder="First Name"
+                      placeholderTextColor="#8B9A8B"
+                    />
+                  </View>
                 </View>
                 <View style={styles.nameField}>
-                  <Text style={styles.label}>Last Name</Text>
-                  <TextInput
-                    value={formData.lastName}
-                    onChangeText={(value) => handleInputChange('lastName', value)}
-                    style={styles.input}
-                    placeholder="Doe"
-                    placeholderTextColor="#9CA3AF"
-                  />
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputIcon}>👤</Text>
+                    <TextInput
+                      value={formData.lastName}
+                      onChangeText={(value) => handleInputChange('lastName', value)}
+                      style={styles.input}
+                      placeholder="Last Name"
+                      placeholderTextColor="#8B9A8B"
+                    />
+                  </View>
                 </View>
               </View>
             )}
 
             {/* Email */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Email Address</Text>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputIcon}>📧</Text>
               <TextInput
                 value={formData.email}
                 onChangeText={(value) => handleInputChange('email', value)}
                 style={styles.input}
                 placeholder={userType === 'employee' ? 'employee@company.com' : 'your@email.com'}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#8B9A8B"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -206,36 +216,34 @@ export default function AuthPage() {
             </View>
 
             {/* Password */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  value={formData.password}
-                  onChangeText={(value) => handleInputChange('password', value)}
-                  style={styles.passwordInput}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry={!showPassword}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                >
-                  <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputIcon}>🔒</Text>
+              <TextInput
+                value={formData.password}
+                onChangeText={(value) => handleInputChange('password', value)}
+                style={styles.input}
+                placeholder="Enter password"
+                placeholderTextColor="#8B9A8B"
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Confirm Password for signup */}
             {!isLogin && (
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputIcon}>🔒</Text>
                 <TextInput
                   value={formData.confirmPassword}
                   onChangeText={(value) => handleInputChange('confirmPassword', value)}
                   style={styles.input}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
+                  placeholder="Confirm password"
+                  placeholderTextColor="#8B9A8B"
                   secureTextEntry
                 />
               </View>
@@ -243,11 +251,9 @@ export default function AuthPage() {
 
             {/* Forgot Password Link */}
             {isLogin && (
-              <View style={styles.forgotPasswordContainer}>
-                <TouchableOpacity>
-                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity style={styles.forgotPasswordContainer}>
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              </TouchableOpacity>
             )}
 
             {/* Submit Button */}
@@ -258,33 +264,29 @@ export default function AuthPage() {
               <Text style={styles.submitButtonText}>
                 {isLogin ? 'Sign In' : 'Create Account'}
               </Text>
+              <Text style={styles.submitButtonIcon}>🌿</Text>
             </TouchableOpacity>
           </View>
 
           {/* Additional Info */}
           <View style={styles.additionalInfo}>
             <Text style={styles.additionalInfoText}>
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
+              {isLogin ? "New to EcoConnect? " : "Already have an account? "}
               <Text 
                 style={styles.linkText}
                 onPress={() => setIsLogin(!isLogin)}
               >
-                {isLogin ? 'Sign up here' : 'Sign in here'}
+                {isLogin ? 'Join us' : 'Sign in'}
               </Text>
             </Text>
           </View>
-
-          {/* Environment Message */}
-          
         </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            By continuing, you agree to our Terms of Service and Privacy Policy
-          </Text>
+        {/* Environmental Footer Badge */}
+        <View style={styles.environmentalFooter}>
+          <Text style={styles.environmentalText}>🌍 50K+ eco-warriors joined</Text>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -292,53 +294,47 @@ export default function AuthPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 30,
-    backgroundColor: '#ECFDF5', // Light green background
+    backgroundColor: '#1B4332', // Deep forest green
   },
-  scrollContainer: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
+    padding: 20,
     justifyContent: 'center',
-    padding: 16,
+    maxHeight: screenHeight,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 20,
+    marginTop: 65,
   },
   logoContainer: {
-    backgroundColor: '#059669',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#52B788',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-  },
-  logoText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
     marginBottom: 8,
   },
+  logoEmoji: {
+    fontSize: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#F8FAF8',
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
   subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#A7C9A7',
+    textAlign: 'center',
   },
   userTypeContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: 24,
     flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    gap: 12,
+    marginBottom: 20,
   },
   userTypeButton: {
     flex: 1,
@@ -347,203 +343,164 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 16,
+    gap: 8,
   },
   userTypeButtonActive: {
-    backgroundColor: '#059669',
+    backgroundColor: '#2D5A3D',
+    borderWidth: 2,
+    borderColor: '#52B788',
   },
   userTypeButtonInactive: {
-    backgroundColor: 'transparent',
+    backgroundColor: 'rgba(45, 90, 61, 0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(167, 201, 167, 0.3)',
   },
-  userTypeIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  userTypeIconActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  userTypeIconText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#6B7280',
-  },
-  userTypeIconTextActive: {
-    color: 'white',
+  userTypeIcon: {
+    fontSize: 16,
   },
   userTypeText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   userTypeTextActive: {
-    color: 'white',
+    color: '#F8FAF8',
   },
   userTypeTextInactive: {
-    color: '#6B7280',
+    color: '#A7C9A7',
   },
   formCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#F8FAF8',
     borderRadius: 24,
-    padding: 32,
+    padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 16,
+    elevation: 12,
+    marginBottom: 16,
   },
   authToggle: {
     flexDirection: 'row',
-    marginBottom: 32,
+    marginBottom: 20,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    padding: 3,
   },
   authToggleButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
+    borderRadius: 9,
   },
   authToggleActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#059669',
+    backgroundColor: '#52B788',
   },
   authToggleInactive: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    backgroundColor: 'transparent',
   },
   authToggleText: {
     fontWeight: '600',
+    fontSize: 14,
   },
   authToggleTextActive: {
-    color: '#059669',
+    color: 'white',
   },
   authToggleTextInactive: {
-    color: '#9CA3AF',
+    color: '#6B7280',
   },
   formFields: {
-    gap: 24,
+    gap: 16,
   },
   nameFieldsContainer: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
   },
   nameField: {
     flex: 1,
   },
-  fieldContainer: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-  },
-  input: {
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  passwordContainer: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 2,
+    borderColor: '#E5F3E8',
     borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
   },
-  passwordInput: {
+  input: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingLeft: 8,
     fontSize: 16,
     color: '#1F2937',
   },
-  eyeButton: {
-    paddingRight: 16,
+  inputIcon: {
+    fontSize: 16,
+    opacity: 0.7,
   },
-  eyeText: {
-    fontSize: 12,
-    color: '#059669',
-    fontWeight: '500',
+  eyeButton: {
+    padding: 4,
+  },
+  eyeIcon: {
+    fontSize: 16,
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
   },
   forgotPasswordText: {
-    fontSize: 14,
-    color: '#059669',
+    fontSize: 13,
+    color: '#52B788',
     fontWeight: '500',
   },
   submitButton: {
-    backgroundColor: '#059669',
+    backgroundColor: '#52B788',
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    justifyContent: 'center',
+    shadowColor: '#52B788',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    marginTop: 4,
   },
   submitButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+    marginRight: 6,
+  },
+  submitButtonIcon: {
+    fontSize: 14,
   },
   additionalInfo: {
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 16,
   },
   additionalInfoText: {
     fontSize: 14,
     color: '#6B7280',
+    textAlign: 'center',
   },
   linkText: {
-    color: '#059669',
+    color: '#52B788',
     fontWeight: '600',
   },
-  environmentMessage: {
-    flexDirection: 'row',
+  environmentalFooter: {
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0FDF4',
-    borderWidth: 2,
-    borderColor: '#BBF7D0',
-    borderRadius: 12,
-    padding: 18,
-    marginTop: 24,
-    paddingRight: 0,
+    backgroundColor: 'rgba(167, 201, 167, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(167, 201, 167, 0.3)',
   },
-  environmentIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#15803D',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  environmentIconText: {
+  environmentalText: {
     fontSize: 12,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  environmentText: {
-    fontSize: 14,
-    color: '#15803D',
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: 32,
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'center',
+    color: '#A7C9A7',
+    fontWeight: '500',
   },
 });

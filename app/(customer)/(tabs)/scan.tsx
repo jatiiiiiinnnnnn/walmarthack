@@ -422,8 +422,8 @@ export default function EnhancedScanTab() {
 
   const LoadingView = () => (
     <View style={styles.loadingContainer}>
-      <Text style={styles.loadingIcon}>🤖</Text>
-      <Text style={styles.loadingTitle}>AI Analyzing Product...</Text>
+
+      <Text style={styles.loadingTitle}>WiseBuy Analyzing Product...</Text>
       <Text style={styles.loadingText}>
         • Identifying scanned product{'\n'}
         • Searching inventory for alternatives{'\n'}
@@ -443,7 +443,7 @@ export default function EnhancedScanTab() {
           <TouchableOpacity onPress={() => setShowResults(false)}>
             <Text style={styles.modalBackButton}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>🤖 AI Analysis Results</Text>
+          <Text style={styles.modalTitle}>WiseBuy Analysis Results</Text>
           <TouchableOpacity onPress={() => {
             setShowResults(false);
             startScanning();
@@ -456,7 +456,7 @@ export default function EnhancedScanTab() {
           <ScrollView style={styles.modalContent}>
             {/* AI Analysis Summary */}
             <View style={styles.aiAnalysisCard}>
-              <Text style={styles.aiAnalysisTitle}>🤖 AI Analysis</Text>
+              <Text style={styles.aiAnalysisTitle}>AI Analysis</Text>
               <Text style={styles.aiAnalysisText}>{analysisResult.analysisNotes}</Text>
             </View>
 
@@ -576,7 +576,7 @@ export default function EnhancedScanTab() {
                       onPress={() => addToCartWithEcoPoints(recommendation, true)}
                     >
                       <Text style={styles.addRecommendationButtonText}>
-                        🤖 Add AI Recommendation • ${recommendation.price} • +{recommendation.ecoPoints + recommendation.ecoBonus} points
+                        Add AI Recommendation • ${recommendation.price} • +{recommendation.ecoPoints + recommendation.ecoBonus} points
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -659,7 +659,7 @@ export default function EnhancedScanTab() {
                 <View style={styles.aiFeatureContent}>
                   <Text style={styles.aiFeatureTitle}>Bonus EcoPoints</Text>
                   <Text style={styles.aiFeatureText}>
-                    Earn extra points when you choose AI-recommended alternatives
+                    Earn extra points when you choose WiseBuy-recommended alternatives
                   </Text>
                 </View>
               </View>
@@ -678,14 +678,13 @@ export default function EnhancedScanTab() {
           {/* Recent Scan */}
           {scannedData && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent AI Analysis</Text>
+              <Text style={styles.sectionTitle}>Recent WiseBuy Analysis</Text>
               <TouchableOpacity 
                 style={styles.recentScanCard}
                 onPress={() => setShowResults(true)}
               >
-                <Text style={styles.recentScanIcon}>🤖</Text>
                 <View style={styles.recentScanInfo}>
-                  <Text style={styles.recentScanTitle}>AI Analysis Complete</Text>
+                  <Text style={styles.recentScanTitle}>WiseBuy Analysis Complete</Text>
                   <Text style={styles.recentScanBarcode}>Barcode: {scannedData}</Text>
                   <Text style={styles.recentScanTime}>
                     {new Date().toLocaleTimeString()}

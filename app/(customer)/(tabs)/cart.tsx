@@ -1,10 +1,15 @@
-// app/(customer)/(tabs)/cart.tsx - COMPLETE FIXED VERSION
+// app/(customer)/(tabs)/cart.tsx - Enhanced Cart with AI Optimizer & Payment Gateway
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -27,22 +32,39 @@ interface EcoDiscount {
   icon: string;
 }
 
-interface AIRecipe {
-  id: string;
-  name: string;
+interface AIOptimization {
+  type: 'savings' | 'sustainability' | 'nutrition' | 'bundle';
+  title: string;
   description: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  cookTime: string;
-  servings: number;
-  matchScore: number;
-  ingredients: string[];
-  availableIngredients: string[];
-  missingIngredients: string[];
-  instructions: string[];
-  nutritionHighlights: string[];
-  sustainabilityNotes: string;
-  category: string;
+  impact: string;
+  actionText: string;
+  icon: string;
+  priority: 'high' | 'medium' | 'low';
+  potentialSavings?: number;
+  sustainabilityImprovement?: number;
 }
+
+interface DigitalReceipt {
+  id: string;
+  orderNumber: string;
+  date: Date;
+  items: CartItem[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paymentMethod: string;
+  cardLast4?: string;
+  ecoPointsEarned: number;
+  co2Impact: number;
+  storeInfo: {
+    name: string;
+    address: string;
+    phone: string;
+  };
+}
+
+
 
 export default function CartTab() {
   const { 
@@ -61,11 +83,21 @@ export default function CartTab() {
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [appliedDiscounts, setAppliedDiscounts] = useState<string[]>([]);
   const [promoCode, setPromoCode] = useState('');
-  const [showRecipeModal, setShowRecipeModal] = useState(false);
-  const [aiRecipes, setAiRecipes] = useState<AIRecipe[]>([]);
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [orderConfirmation, setOrderConfirmation] = useState<Order | null>(null);
+  const [showAIOptimizerModal, setShowAIOptimizerModal] = useState(false);
+  const [aiOptimizations, setAiOptimizations] = useState<AIOptimization[]>([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    cardholderName: '',
+    billingZip: ''
+  });
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [digitalReceipt, setDigitalReceipt] = useState<DigitalReceipt | null>(null);
   const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [processingAnimation] = useState(new Animated.Value(0));
 
   // FIXED: Memoize static data to prevent recreation on every render
   const ecoDiscounts: EcoDiscount[] = useMemo(() => [
@@ -155,193 +187,106 @@ export default function CartTab() {
     localCartItems.reduce((sum, item) => sum + (item.co2Impact * item.quantity), 0)
   , [localCartItems]);
 
-  // FIXED: Move recipe generation to useCallback to prevent recreation
-  const generateAIRecipes = useCallback((cartItems: CartItem[]): AIRecipe[] => {
+  const avgSustainabilityScore = useMemo(() => {
+    if (localCartItems.length === 0) return 0;
+    const totalScore = localCartItems.reduce((sum, item) => sum + item.sustainabilityScore, 0);
+    return totalScore / localCartItems.length;
+  }, [localCartItems]);
+
+  // AI Cart Optimizer Logic
+  const generateAIOptimizations = useCallback((cartItems: CartItem[]): AIOptimization[] => {
     if (cartItems.length === 0) return [];
 
-    const baseRecipes: Omit<AIRecipe, 'availableIngredients' | 'missingIngredients' | 'matchScore'>[] = [
-      {
-        id: 'recipe_1',
-        name: 'Eco-Friendly Stir Fry',
-        description: 'Quick and healthy vegetable stir fry using sustainable ingredients',
-        difficulty: 'Easy',
-        cookTime: '15 minutes',
-        servings: 2,
-        ingredients: ['Organic vegetables', 'Plant-based protein', 'Coconut oil', 'Soy sauce', 'Garlic', 'Ginger'],
-        instructions: [
-          'Heat coconut oil in a large pan',
-          'Add garlic and ginger, stir for 30 seconds',
-          'Add vegetables and protein, stir fry for 8-10 minutes',
-          'Season with soy sauce and serve hot'
-        ],
-        nutritionHighlights: ['High in protein', 'Rich in vitamins', 'Low in calories'],
-        sustainabilityNotes: 'This recipe uses locally sourced organic vegetables and plant-based proteins to minimize environmental impact.',
-        category: 'Dinner'
-      },
-      {
-        id: 'recipe_2',
-        name: 'Sustainable Smoothie Bowl',
-        description: 'Nutritious breakfast bowl with organic fruits and nuts',
-        difficulty: 'Easy',
-        cookTime: '5 minutes',
-        servings: 1,
-        ingredients: ['Organic berries', 'Banana', 'Organic yogurt', 'Granola', 'Nuts', 'Honey'],
-        instructions: [
-          'Blend berries, banana, and yogurt until smooth',
-          'Pour into bowl',
-          'Top with granola, nuts, and honey',
-          'Enjoy immediately'
-        ],
-        nutritionHighlights: ['High in fiber', 'Rich in antioxidants', 'Probiotic benefits'],
-        sustainabilityNotes: 'Made with organic ingredients that support sustainable farming practices.',
-        category: 'Breakfast'
-      },
-      {
-        id: 'recipe_3',
-        name: 'Zero-Waste Pasta',
-        description: 'Delicious pasta using whole ingredients with minimal waste',
-        difficulty: 'Medium',
-        cookTime: '25 minutes',
-        servings: 4,
-        ingredients: ['Whole wheat pasta', 'Organic tomatoes', 'Basil', 'Garlic', 'Olive oil', 'Parmesan'],
-        instructions: [
-          'Cook pasta according to package directions',
-          'Sauté garlic in olive oil',
-          'Add tomatoes and simmer for 15 minutes',
-          'Toss with pasta, basil, and cheese',
-          'Serve hot'
-        ],
-        nutritionHighlights: ['Whole grain goodness', 'Rich in lycopene', 'Good source of fiber'],
-        sustainabilityNotes: 'Uses whole wheat pasta and organic tomatoes. Food scraps can be composted.',
-        category: 'Dinner'
-      },
-      {
-        id: 'recipe_4',
-        name: 'Plant-Based Power Bowl',
-        description: 'Nutritious bowl packed with plant proteins and fresh vegetables',
-        difficulty: 'Easy',
-        cookTime: '20 minutes',
-        servings: 2,
-        ingredients: ['Quinoa', 'Black beans', 'Avocado', 'Sweet potato', 'Spinach', 'Tahini'],
-        instructions: [
-          'Cook quinoa according to package directions',
-          'Roast sweet potato cubes at 400°F for 20 minutes',
-          'Arrange quinoa, beans, and vegetables in bowls',
-          'Drizzle with tahini dressing',
-          'Serve immediately'
-        ],
-        nutritionHighlights: ['Complete protein', 'Rich in fiber', 'Packed with vitamins'],
-        sustainabilityNotes: 'Plant-based proteins have a much lower carbon footprint than animal proteins.',
-        category: 'Lunch'
-      },
-      {
-        id: 'recipe_5',
-        name: 'Sustainable Seafood Tacos',
-        description: 'Eco-friendly fish tacos with seasonal vegetables',
-        difficulty: 'Medium',
-        cookTime: '30 minutes',
-        servings: 3,
-        ingredients: ['Sustainable fish', 'Corn tortillas', 'Cabbage', 'Lime', 'Cilantro', 'Greek yogurt'],
-        instructions: [
-          'Season and grill fish for 4-5 minutes per side',
-          'Warm tortillas in a dry pan',
-          'Shred cabbage and mix with lime juice',
-          'Assemble tacos with fish, slaw, and yogurt',
-          'Garnish with cilantro and serve'
-        ],
-        nutritionHighlights: ['Omega-3 fatty acids', 'Lean protein', 'Rich in vitamins'],
-        sustainabilityNotes: 'Choose sustainably caught fish to support ocean conservation.',
-        category: 'Dinner'
-      }
-    ];
+    const optimizations: AIOptimization[] = [];
+    const currentSubtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const ecoItemsCount = cartItems.filter(item => item.isEcoFriendly).length;
+    const avgSustainability = cartItems.reduce((sum, item) => sum + item.sustainabilityScore, 0) / cartItems.length;
 
-    // Analyze cart contents
-    const hasOrganic = cartItems.some(item => item.name.toLowerCase().includes('organic') || item.isEcoFriendly);
-    const hasVegetables = cartItems.some(item => 
-      item.category.toLowerCase().includes('produce') || 
-      item.name.toLowerCase().includes('vegetable') ||
-      item.name.toLowerCase().includes('carrot') ||
-      item.name.toLowerCase().includes('pepper') ||
-      item.name.toLowerCase().includes('greens')
-    );
-    const hasDairy = cartItems.some(item => 
-      item.category.toLowerCase().includes('dairy') ||
-      item.name.toLowerCase().includes('milk') ||
-      item.name.toLowerCase().includes('yogurt') ||
-      item.name.toLowerCase().includes('cheese')
-    );
-    const hasGrains = cartItems.some(item =>
-      item.name.toLowerCase().includes('pasta') ||
-      item.name.toLowerCase().includes('bread') ||
-      item.name.toLowerCase().includes('quinoa') ||
-      item.name.toLowerCase().includes('rice')
-    );
-    const hasProtein = cartItems.some(item =>
-      item.name.toLowerCase().includes('meat') ||
-      item.name.toLowerCase().includes('protein') ||
-      item.name.toLowerCase().includes('beans') ||
-      item.name.toLowerCase().includes('eggs')
-    );
-
-    return baseRecipes.map(recipe => {
-      let availableIngredients: string[] = [];
-      let missingIngredients: string[] = [];
-      let matchScore = 60; // Base score
-
-      // Check which ingredients are available in cart
-      recipe.ingredients.forEach(ingredient => {
-        const isAvailable = cartItems.some(item => {
-          const itemName = item.name.toLowerCase();
-          const ingredientName = ingredient.toLowerCase();
-          return itemName.includes(ingredientName.split(' ')[0]) || 
-                 itemName.includes(ingredientName.split(' ')[1] || '') ||
-                 (ingredientName.includes('organic') && item.isEcoFriendly) ||
-                 (ingredientName.includes('vegetables') && hasVegetables) ||
-                 (ingredientName.includes('protein') && hasProtein);
-        });
-
-        if (isAvailable) {
-          availableIngredients.push(ingredient);
-        } else {
-          missingIngredients.push(ingredient);
-        }
+    // Savings Optimization
+    if (currentSubtotal < 50 && currentSubtotal > 40) {
+      optimizations.push({
+        type: 'savings',
+        title: 'Unlock Free Shipping',
+        description: `Add $${(50 - currentSubtotal).toFixed(2)} more to get free shipping and save $4.99`,
+        impact: `Save $4.99 on shipping`,
+        actionText: 'Add qualifying items',
+        icon: '🚚',
+        priority: 'high',
+        potentialSavings: 4.99
       });
+    }
 
-      // Calculate match score based on available ingredients
-      const availabilityScore = availableIngredients.length > 0 ? 
-        (availableIngredients.length / recipe.ingredients.length) * 100 : 0;
-      matchScore = Math.floor((matchScore * 0.4) + (availabilityScore * 0.6));
+    // Sustainability Optimization
+    if (ecoItemsCount < cartItems.length * 0.5) {
+      optimizations.push({
+        type: 'sustainability',
+        title: 'Boost Your Eco Impact',
+        description: `${cartItems.length - ecoItemsCount} items could be swapped for eco-friendly alternatives`,
+        impact: `Reduce CO₂ by ~2.3kg and earn +${(cartItems.length - ecoItemsCount) * 15} EcoPoints`,
+        actionText: 'View eco alternatives',
+        icon: '🌱',
+        priority: 'medium',
+        sustainabilityImprovement: 2.3
+      });
+    }
 
-      // Boost score for relevant categories
-      if (hasOrganic) matchScore += 15;
-      if (hasVegetables && recipe.category === 'Dinner') matchScore += 10;
-      if (hasDairy && recipe.name.includes('Smoothie')) matchScore += 20;
-      if (hasGrains && recipe.name.includes('Pasta')) matchScore += 25;
-      if (hasProtein && recipe.name.includes('Power Bowl')) matchScore += 20;
+    // Bundle Optimization
+    if (cartItems.some(item => item.category.includes('produce')) && 
+        !cartItems.some(item => item.category.includes('dairy'))) {
+      optimizations.push({
+        type: 'bundle',
+        title: 'Complete Your Meal',
+        description: 'Add dairy products to complement your fresh produce',
+        impact: 'Save 15% on dairy when bundled with produce',
+        actionText: 'Browse dairy products',
+        icon: '🥛',
+        priority: 'low',
+        potentialSavings: currentSubtotal * 0.15
+      });
+    }
 
-      // Ensure minimum match score for cart with items
-      if (cartItems.length > 0 && matchScore < 30) {
-        matchScore = 30 + Math.floor(Math.random() * 20);
-      }
+    // EcoPoints Optimization
+    if (userEcoPoints >= 250 && currentSubtotal >= 25) {
+      optimizations.push({
+        type: 'savings',
+        title: 'Use Your EcoPoints',
+        description: 'You can save money using your accumulated EcoPoints',
+        impact: `Save up to $${Math.min(10, currentSubtotal * 0.05).toFixed(2)} with Eco Champion discount`,
+        actionText: 'Apply EcoPoints discount',
+        icon: '💰',
+        priority: 'high',
+        potentialSavings: Math.min(10, currentSubtotal * 0.05)
+      });
+    }
 
-      return {
-        ...recipe,
-        availableIngredients,
-        missingIngredients,
-        matchScore: Math.min(matchScore, 100)
-      };
-    }).sort((a, b) => b.matchScore - a.matchScore);
-  }, []);
+    // Nutrition Optimization
+    if (!cartItems.some(item => item.category.includes('produce'))) {
+      optimizations.push({
+        type: 'nutrition',
+        title: 'Add Fresh Nutrition',
+        description: 'Your cart lacks fresh fruits and vegetables',
+        impact: 'Boost nutrition and earn extra EcoPoints for fresh produce',
+        actionText: 'Browse fresh produce',
+        icon: '🥕',
+        priority: 'medium'
+      });
+    }
 
-  // FIXED: Only generate recipes when cart actually changes
+    return optimizations.sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
+  }, [userEcoPoints]);
+
+  // Generate AI optimizations when cart changes
   useEffect(() => {
     if (localCartItems.length > 0) {
-      const recipes = generateAIRecipes(localCartItems);
-      setAiRecipes(recipes);
+      const optimizations = generateAIOptimizations(localCartItems);
+      setAiOptimizations(optimizations);
     } else {
-      setAiRecipes([]);
+      setAiOptimizations([]);
     }
-  }, [localCartItems, generateAIRecipes]);
+  }, [localCartItems, generateAIOptimizations]);
 
   // FIXED: Memoize calculation functions to prevent recreation
   const calculateEcoDiscount = useCallback((discount: EcoDiscount) => {
@@ -382,7 +327,47 @@ export default function CartTab() {
     return totalDiscount;
   }, [appliedDiscounts, ecoDiscounts, calculateEcoDiscount, calculatePromoDiscount]);
 
-  // FIXED: Memoize action functions
+  // Navigation functions
+  const navigateToShopping = () => {
+    router.push('./dashboard');
+  };
+
+  const navigateToScanner = () => {
+    router.push('./scan');
+  };
+
+  // AI Optimizer Action Functions
+  // (Removed duplicate handleOptimizationAction declaration)
+
+  // Memoized payment input handlers to prevent form fluctuation
+  const updatePaymentField = useCallback((field: string, value: string) => {
+    setPaymentData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleCardNumberChange = useCallback((text: string) => {
+    // Format card number with spaces
+    const formatted = text.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
+    updatePaymentField('cardNumber', formatted);
+  }, [updatePaymentField]);
+
+  const handleExpiryDateChange = useCallback((text: string) => {
+    // Format expiry date as MM/YY
+    const formatted = text.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2');
+    updatePaymentField('expiryDate', formatted);
+  }, [updatePaymentField]);
+
+  const handleCvvChange = useCallback((text: string) => {
+    updatePaymentField('cvv', text.replace(/\D/g, ''));
+  }, [updatePaymentField]);
+
+  const handleCardholderNameChange = useCallback((text: string) => {
+    updatePaymentField('cardholderName', text);
+  }, [updatePaymentField]);
+
+  const handleBillingZipChange = useCallback((text: string) => {
+    updatePaymentField('billingZip', text.replace(/\D/g, ''));
+  }, [updatePaymentField]);
+
   const applyEcoDiscount = useCallback((discountId: string) => {
     const discount = ecoDiscounts.find(d => d.id === discountId);
     if (!discount) return;
@@ -409,6 +394,89 @@ export default function CartTab() {
     Alert.alert('Discount Applied! 💚', `${discount.name} has been applied to your cart.`);
   }, [ecoDiscounts, subtotal, userEcoPoints, setUserEcoPoints]);
 
+  const handleOptimizationAction = useCallback((optimization: AIOptimization) => {
+    switch (optimization.type) {
+      case 'savings':
+        if (optimization.title.includes('Free Shipping')) {
+          // Navigate to shopping to add more items
+          Alert.alert(
+            'Add More Items 🛒',
+            `Add ${(50 - subtotal).toFixed(2)} more to unlock free shipping and save $4.99!`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Shop Now', onPress: () => {
+                setShowAIOptimizerModal(false);
+                navigateToShopping();
+              }}
+            ]
+          );
+        } else if (optimization.title.includes('EcoPoints')) {
+          // Apply the best available EcoPoints discount
+          const bestDiscount = ecoDiscounts.find(d => 
+            userEcoPoints >= d.pointsRequired && 
+            (!d.minCartValue || subtotal >= d.minCartValue) &&
+            !appliedDiscounts.includes(d.id)
+          );
+          if (bestDiscount) {
+            applyEcoDiscount(bestDiscount.id);
+            setShowAIOptimizerModal(false);
+          } else {
+            Alert.alert('No Available Discounts', 'No EcoPoints discounts are currently available for your cart.');
+          }
+        }
+        break;
+        
+      case 'sustainability':
+        // Show eco-friendly alternatives or apply eco discount
+        Alert.alert(
+          'Eco-Friendly Alternatives 🌱',
+          'Switch to eco-friendly versions of your items to reduce CO₂ impact and earn more EcoPoints!',
+          [
+            { text: 'Maybe Later', style: 'cancel' },
+            { text: 'Show Eco Products', onPress: () => {
+              setShowAIOptimizerModal(false);
+              // Here you could navigate to a filtered eco products view
+              navigateToShopping();
+            }}
+          ]
+        );
+        break;
+        
+      case 'bundle':
+        // Navigate to suggested category
+        Alert.alert(
+          'Complete Your Bundle 🥛',
+          'Add dairy products to get 15% off when bundled with your produce items!',
+          [
+            { text: 'Skip', style: 'cancel' },
+            { text: 'Browse Dairy', onPress: () => {
+              setShowAIOptimizerModal(false);
+              navigateToShopping();
+            }}
+          ]
+        );
+        break;
+        
+      case 'nutrition':
+        // Navigate to produce section
+        Alert.alert(
+          'Add Fresh Nutrition 🥕',
+          'Fresh fruits and vegetables will boost your nutrition and earn extra EcoPoints!',
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'Browse Produce', onPress: () => {
+              setShowAIOptimizerModal(false);
+              navigateToShopping();
+            }}
+          ]
+        );
+        break;
+        
+      default:
+        Alert.alert('Coming Soon!', 'This optimization feature is coming soon.');
+    }
+  }, [subtotal, userEcoPoints, ecoDiscounts, appliedDiscounts, applyEcoDiscount, navigateToShopping]);
+
   const applyPromoCode = useCallback(() => {
     const foundPromo = promoCodes.find(p => p.code === promoCode.toUpperCase());
     if (!foundPromo) {
@@ -418,14 +486,32 @@ export default function CartTab() {
     Alert.alert('Promo Applied! 🎉', foundPromo.description);
   }, [promoCodes, promoCode]);
 
-  const proceedToCheckout = useCallback(() => {
-    if (localCartItems.length === 0) {
-      Alert.alert('Empty Cart', 'Please add items to your cart before proceeding.');
-      return;
-    }
+  // Payment processing
+  const processPayment = useCallback(async () => {
+    setPaymentProcessing(true);
+    
+    // Animate processing
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(processingAnimation, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(processingAnimation, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+
+    // Simulate payment processing
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     const discount = getTotalDiscount();
-    const total = subtotal - discount;
+    const tax = (subtotal - discount) * 0.08; // 8% tax
+    const total = subtotal - discount + tax;
     const ecoPoints = totalEcoPoints;
     
     const newOrder: Order = {
@@ -439,14 +525,90 @@ export default function CartTab() {
       status: 'Processing'
     };
 
+    // Generate digital receipt
+    const receipt: DigitalReceipt = {
+      id: `receipt_${Date.now()}`,
+      orderNumber: newOrder.id.replace('order_', 'WMT-'),
+      date: new Date(),
+      items: localCartItems,
+      subtotal,
+      discount,
+      tax,
+      total,
+      paymentMethod: 'Credit Card',
+      cardLast4: paymentData.cardNumber.slice(-4),
+      ecoPointsEarned: ecoPoints,
+      co2Impact: totalCO2,
+      storeInfo: {
+        name: 'Walmart EcoConnect',
+        address: '123 Green Street, Eco City, EC 12345',
+        phone: '(555) 123-4567'
+      }
+    };
+
     addOrder(newOrder);
     setUserEcoPoints(prev => prev + ecoPoints);
-    setOrderConfirmation(newOrder);
-    setShowOrderModal(true);
+    setDigitalReceipt(receipt);
+    setPaymentProcessing(false);
+    setShowPaymentModal(false);
+    setShowReceiptModal(true);
     clearCart();
     setAppliedDiscounts([]);
     setPromoCode('');
-  }, [localCartItems, getTotalDiscount, subtotal, totalEcoPoints, addOrder, setUserEcoPoints, clearCart]);
+    
+    processingAnimation.stopAnimation();
+    processingAnimation.setValue(0);
+  }, [localCartItems, getTotalDiscount, subtotal, totalEcoPoints, totalCO2, paymentData, addOrder, setUserEcoPoints, clearCart, processingAnimation]);
+
+  const proceedToCheckout = useCallback(() => {
+    if (localCartItems.length === 0) {
+      Alert.alert('Empty Cart', 'Please add items to your cart before proceeding.');
+      return;
+    }
+    setShowPaymentModal(true);
+  }, [localCartItems]);
+
+  const downloadReceipt = useCallback(async () => {
+    if (!digitalReceipt) return;
+
+    const receiptText = `
+WALMART ECOCONNECT
+Digital Receipt
+${digitalReceipt.storeInfo.address}
+${digitalReceipt.storeInfo.phone}
+
+Order #: ${digitalReceipt.orderNumber}
+Date: ${digitalReceipt.date.toLocaleDateString()} ${digitalReceipt.date.toLocaleTimeString()}
+
+ITEMS:
+${digitalReceipt.items.map(item => 
+  `${item.name} x${item.quantity} - $${(item.price * item.quantity).toFixed(2)}`
+).join('\n')}
+
+SUMMARY:
+Subtotal: $${digitalReceipt.subtotal.toFixed(2)}
+Discount: -$${digitalReceipt.discount.toFixed(2)}
+Tax: $${digitalReceipt.tax.toFixed(2)}
+TOTAL: $${digitalReceipt.total.toFixed(2)}
+
+Payment: ${digitalReceipt.paymentMethod} ****${digitalReceipt.cardLast4}
+
+ECO IMPACT:
+EcoPoints Earned: +${digitalReceipt.ecoPointsEarned}
+CO₂ Impact: ${digitalReceipt.co2Impact.toFixed(2)}kg
+
+Thank you for shopping sustainably!
+    `.trim();
+
+    try {
+      await Share.share({
+        message: receiptText,
+        title: `Receipt - ${digitalReceipt.orderNumber}`
+      });
+    } catch (error) {
+      console.error('Error sharing receipt:', error);
+    }
+  }, [digitalReceipt]);
 
   // FIXED: Memoize component functions
   const CartItemCard = useCallback(({ item }: { item: CartItem }) => (
@@ -470,7 +632,7 @@ export default function CartTab() {
           )}
           {item.isEcoAlternative && (
             <View style={styles.aiBadge}>
-              <Text style={styles.aiBadgeText}>🤖 AI Pick</Text>
+              <Text style={styles.aiBadgeText}>CartAI Pick</Text>
             </View>
           )}
           {item.isScanned && (
@@ -537,154 +699,382 @@ export default function CartTab() {
         Try scanning products or browse our dashboard for great deals.
       </Text>
       <View style={styles.emptyCartActions}>
-        <TouchableOpacity style={styles.emptyCartButton}>
-          <Text style={styles.emptyCartButtonText}>🛍️ Start Shopping</Text>
+        <TouchableOpacity style={styles.emptyCartButton} onPress={navigateToShopping}>
+          <Text style={styles.emptyCartButtonText}>Start Shopping</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.emptyCartButton}>
-          <Text style={styles.emptyCartButtonText}>📱 Scan Products</Text>
+        <TouchableOpacity style={styles.emptyCartButton} onPress={navigateToScanner}>
+          <Text style={styles.emptyCartButtonText}>Scan Products</Text>
         </TouchableOpacity>
       </View>
     </View>
   ), []);
 
-  const RecipeModal = useCallback(() => (
-    <Modal visible={showRecipeModal} animationType="slide" presentationStyle="formSheet">
+  const AIOptimizerModal = useCallback(() => (
+    <Modal visible={showAIOptimizerModal} animationType="slide" presentationStyle="formSheet">
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={() => setShowRecipeModal(false)}>
+          <TouchableOpacity onPress={() => setShowAIOptimizerModal(false)}>
             <Text style={styles.modalBackButton}>✕ Close</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>🤖 AI Recipe Suggestions</Text>
+          <Text style={styles.modalTitle}>AI Cart Optimizer</Text>
           <View />
         </View>
 
         <ScrollView style={styles.modalContent}>
-          <Text style={styles.recipesIntroTitle}>Recipes Based on Your Cart</Text>
-          <Text style={styles.recipesIntroText}>
-            Our AI analyzed your cart and found {aiRecipes.length} recipes you can make with your items!
+          <Text style={styles.optimizationIntroTitle}>Smart Cart Analysis</Text>
+          <Text style={styles.optimizationIntroText}>
+            Our AI analyzed your cart and found {aiOptimizations.length} opportunities to optimize your shopping!
           </Text>
 
-          {aiRecipes.map((recipe, index) => (
-            <View key={recipe.id} style={styles.recipeCard}>
-              <View style={styles.recipeHeader}>
-                <Text style={styles.recipeName}>{recipe.name}</Text>
-                <View style={styles.recipeMatchBadge}>
-                  <Text style={styles.recipeMatchText}>{recipe.matchScore}% match</Text>
+          {/* Cart Stats */}
+          <View style={styles.cartStatsCard}>
+            <Text style={styles.cartStatsTitle}>📊 Cart Overview</Text>
+            <View style={styles.cartStatsGrid}>
+              <View style={styles.cartStatItem}>
+                <Text style={styles.cartStatValue}>${subtotal.toFixed(2)}</Text>
+                <Text style={styles.cartStatLabel}>Cart Value</Text>
+              </View>
+              <View style={styles.cartStatItem}>
+                <Text style={styles.cartStatValue}>{avgSustainabilityScore.toFixed(1)}/10</Text>
+                <Text style={styles.cartStatLabel}>Sustainability</Text>
+              </View>
+              <View style={styles.cartStatItem}>
+                <Text style={styles.cartStatValue}>{localCartItems.filter(i => i.isEcoFriendly).length}</Text>
+                <Text style={styles.cartStatLabel}>Eco Items</Text>
+              </View>
+              <View style={styles.cartStatItem}>
+                <Text style={styles.cartStatValue}>+{totalEcoPoints}</Text>
+                <Text style={styles.cartStatLabel}>EcoPoints</Text>
+              </View>
+            </View>
+          </View>
+
+          {aiOptimizations.map((optimization, index) => (
+            <View key={index} style={[
+              styles.optimizationCard,
+              optimization.priority === 'high' && styles.optimizationCardHigh,
+              optimization.priority === 'medium' && styles.optimizationCardMedium
+            ]}>
+              <View style={styles.optimizationHeader}>
+                <Text style={styles.optimizationIcon}>{optimization.icon}</Text>
+                <View style={styles.optimizationInfo}>
+                  <Text style={styles.optimizationTitle}>{optimization.title}</Text>
+                  <Text style={styles.optimizationDescription}>{optimization.description}</Text>
+                </View>
+                <View style={[
+                  styles.priorityBadge,
+                  optimization.priority === 'high'
+                    ? styles.priorityHigh
+                    : optimization.priority === 'medium'
+                    ? styles.priorityMedium
+                    : styles.priorityLow
+                ]}>
+                  <Text style={styles.priorityText}>{optimization.priority.toUpperCase()}</Text>
                 </View>
               </View>
               
-              <Text style={styles.recipeDescription}>{recipe.description}</Text>
-              
-              <View style={styles.recipeInfo}>
-                <Text style={styles.recipeInfoItem}>⏱️ {recipe.cookTime}</Text>
-                <Text style={styles.recipeInfoItem}>👥 {recipe.servings} servings</Text>
-                <Text style={styles.recipeInfoItem}>📊 {recipe.difficulty}</Text>
+              <View style={styles.optimizationImpact}>
+                <Text style={styles.optimizationImpactText}>💡 {optimization.impact}</Text>
               </View>
 
-              <View style={styles.recipeIngredients}>
-                <Text style={styles.recipeIngredientsTitle}>Ingredients:</Text>
-                {recipe.availableIngredients.length > 0 && (
-                  <>
-                    <Text style={styles.recipeAvailableText}>✅ You have ({recipe.availableIngredients.length}):</Text>
-                    {recipe.availableIngredients.map((ingredient, idx) => (
-                      <Text key={idx} style={styles.recipeAvailableIngredient}>• {ingredient}</Text>
-                    ))}
-                  </>
-                )}
-                
-                {recipe.missingIngredients.length > 0 && (
-                  <>
-                    <Text style={styles.recipeMissingText}>🛒 You need ({recipe.missingIngredients.length}):</Text>
-                    {recipe.missingIngredients.map((ingredient, idx) => (
-                      <Text key={idx} style={styles.recipeMissingIngredient}>• {ingredient}</Text>
-                    ))}
-                  </>
-                )}
-              </View>
-
-              <View style={styles.recipeSustainability}>
-                <Text style={styles.recipeSustainabilityTitle}>🌱 Sustainability Notes:</Text>
-                <Text style={styles.recipeSustainabilityText}>{recipe.sustainabilityNotes}</Text>
-              </View>
-
-              <TouchableOpacity style={styles.viewRecipeButton}>
-                <Text style={styles.viewRecipeButtonText}>View Full Recipe</Text>
+              <TouchableOpacity 
+                style={styles.optimizationActionButton}
+                onPress={() => handleOptimizationAction(optimization)}
+              >
+                <Text style={styles.optimizationActionText}>{optimization.actionText}</Text>
               </TouchableOpacity>
             </View>
           ))}
 
-          {aiRecipes.length === 0 && (
-            <View style={styles.noRecipesCard}>
-              <Text style={styles.noRecipesIcon}>🤖</Text>
-              <Text style={styles.noRecipesTitle}>No Recipes Found</Text>
-              <Text style={styles.noRecipesText}>
-                Add more items to your cart to get AI recipe suggestions!
+          {aiOptimizations.length === 0 && (
+            <View style={styles.noOptimizationsCard}>
+              <Text style={styles.noOptimizationsIcon}>✨</Text>
+              <Text style={styles.noOptimizationsTitle}>Your Cart is Optimized!</Text>
+              <Text style={styles.noOptimizationsText}>
+                Great job! Your cart is already well-optimized for savings and sustainability.
               </Text>
             </View>
           )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
-  ), [showRecipeModal, aiRecipes]);
+  ), [showAIOptimizerModal, aiOptimizations, subtotal, avgSustainabilityScore, localCartItems, totalEcoPoints, handleOptimizationAction]);
 
-  const OrderConfirmationModal = useCallback(() => (
-    <Modal visible={showOrderModal} animationType="slide" presentationStyle="formSheet">
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.orderModalContent}>
-          <Text style={styles.orderSuccessIcon}>✅</Text>
-          <Text style={styles.orderSuccessTitle}>Order Placed Successfully!</Text>
-          <Text style={styles.orderSuccessSubtitle}>
-            Thank you for your purchase! Your order is being processed.
-          </Text>
+  const PaymentModal = useCallback(() => (
+  <Modal visible={showPaymentModal} animationType="slide" presentationStyle="fullScreen">
+    <SafeAreaView style={styles.paymentModalContainer}>
+      <View style={styles.paymentHeader}>
+        <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+          <Text style={styles.paymentBackButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.paymentTitle}>Secure Checkout</Text>
+        
+      </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView style={styles.paymentContent} keyboardShouldPersistTaps="handled">
+          {/* Order Summary */}
+          <View style={styles.paymentSummaryCard}>
+            <Text style={styles.paymentSummaryTitle}>Order Summary</Text>
+            <View style={styles.paymentSummaryRow}>
+              <Text style={styles.paymentSummaryLabel}>Subtotal</Text>
+              <Text style={styles.paymentSummaryValue}>${subtotal.toFixed(2)}</Text>
+            </View>
+            {getTotalDiscount() > 0 && (
+              <View style={styles.paymentSummaryRow}>
+                <Text style={styles.paymentSummaryLabel}>Discounts</Text>
+                <Text style={[styles.paymentSummaryValue, styles.discountText]}>-${getTotalDiscount().toFixed(2)}</Text>
+              </View>
+            )}
+            <View style={styles.paymentSummaryRow}>
+              <Text style={styles.paymentSummaryLabel}>Tax</Text>
+              <Text style={styles.paymentSummaryValue}>${((subtotal - getTotalDiscount()) * 0.08).toFixed(2)}</Text>
+            </View>
+            <View style={styles.paymentSummaryDivider} />
+            <View style={styles.paymentSummaryRow}>
+              <Text style={styles.paymentSummaryTotalLabel}>Total</Text>
+              <Text style={styles.paymentSummaryTotalValue}>${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08).toFixed(2)}</Text>
+            </View>
+          </View>
 
-          {orderConfirmation && (
-            <View style={styles.orderSummaryCard}>
-              <Text style={styles.orderSummaryTitle}>Order Summary</Text>
-              <View style={styles.orderSummaryRow}>
-                <Text style={styles.orderSummaryLabel}>Order ID:</Text>
-                <Text style={styles.orderSummaryValue}>{orderConfirmation.id}</Text>
+          {/* Payment Form */}
+          <View style={styles.paymentFormCard}>
+            <Text style={styles.paymentFormTitle}>💳 Payment Information</Text>
+            
+            <View style={styles.paymentInputGroup}>
+              <Text style={styles.paymentInputLabel}>Card Number</Text>
+              <TextInput
+                style={styles.paymentInput}
+                placeholder="1234 5678 9012 3456"
+                value={paymentData.cardNumber}
+                onChangeText={handleCardNumberChange}
+                keyboardType="numeric"
+                maxLength={19}
+              />
+            </View>
+
+            <View style={styles.paymentInputRow}>
+              <View style={styles.paymentInputHalf}>
+                <Text style={styles.paymentInputLabel}>Expiry Date</Text>
+                <TextInput
+                  style={styles.paymentInput}
+                  placeholder="MM/YY"
+                  value={paymentData.expiryDate}
+                  onChangeText={handleExpiryDateChange}
+                  keyboardType="numeric"
+                  maxLength={5}
+                />
               </View>
-              <View style={styles.orderSummaryRow}>
-                <Text style={styles.orderSummaryLabel}>Items:</Text>
-                <Text style={styles.orderSummaryValue}>{orderConfirmation.items.length}</Text>
-              </View>
-              <View style={styles.orderSummaryRow}>
-                <Text style={styles.orderSummaryLabel}>Total:</Text>
-                <Text style={styles.orderSummaryValue}>${orderConfirmation.total.toFixed(2)}</Text>
-              </View>
-              <View style={styles.orderSummaryRow}>
-                <Text style={styles.orderSummaryLabel}>EcoPoints Earned:</Text>
-                <Text style={styles.orderSummaryValue}>+{orderConfirmation.ecoPointsEarned}</Text>
-              </View>
-              <View style={styles.orderSummaryRow}>
-                <Text style={styles.orderSummaryLabel}>Status:</Text>
-                <Text style={styles.orderSummaryValue}>{orderConfirmation.status}</Text>
+              <View style={styles.paymentInputHalf}>
+                <Text style={styles.paymentInputLabel}>CVV</Text>
+                <TextInput
+                  style={styles.paymentInput}
+                  placeholder="123"
+                  value={paymentData.cvv}
+                  onChangeText={handleCvvChange}
+                  keyboardType="numeric"
+                  maxLength={4}
+                  secureTextEntry
+                />
               </View>
             </View>
-          )}
 
-          <View style={styles.orderModalActions}>
-            <TouchableOpacity 
-              style={styles.viewOrdersButton}
-              onPress={() => {
-                setShowOrderModal(false);
-                setShowOrdersModal(true);
-              }}
-            >
-              <Text style={styles.viewOrdersButtonText}>📦 View My Orders</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.continueShoppingButton}
-              onPress={() => setShowOrderModal(false)}
-            >
-              <Text style={styles.continueShoppingButtonText}>🛍️ Continue Shopping</Text>
-            </TouchableOpacity>
+            <View style={styles.paymentInputGroup}>
+              <Text style={styles.paymentInputLabel}>Cardholder Name</Text>
+              <TextInput
+                style={styles.paymentInput}
+                placeholder="John Doe"
+                value={paymentData.cardholderName}
+                onChangeText={handleCardholderNameChange}
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={styles.paymentInputGroup}>
+              <Text style={styles.paymentInputLabel}>Billing ZIP Code</Text>
+              <TextInput
+                style={styles.paymentInput}
+                placeholder="12345"
+                value={paymentData.billingZip}
+                onChangeText={handleBillingZipChange}
+                keyboardType="numeric"
+                maxLength={10}
+              />
+            </View>
           </View>
+
+          
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Payment Button */}
+      <View style={styles.paymentButtonContainer}>
+        <TouchableOpacity 
+          style={[styles.paymentButton, paymentProcessing && styles.paymentButtonProcessing]}
+          onPress={processPayment}
+          disabled={paymentProcessing}
+        >
+          {paymentProcessing ? (
+            <View style={styles.processingContainer}>
+              <Animated.View style={[
+                styles.processingDot,
+                {
+                  opacity: processingAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.3, 1],
+                  }),
+                },
+              ]} />
+              <Text style={styles.paymentButtonText}>Processing Payment...</Text>
+            </View>
+          ) : (
+            <Text style={styles.paymentButtonText}>
+              Complete Purchase • ${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08).toFixed(2)}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  </Modal>
+), [
+  showPaymentModal, 
+  subtotal, 
+  getTotalDiscount, 
+  paymentData, 
+  paymentProcessing, 
+  processPayment, 
+  processingAnimation,
+  handleCardNumberChange,
+  handleExpiryDateChange,
+  handleCvvChange,
+  handleCardholderNameChange,
+  handleBillingZipChange
+]);
+
+  const ReceiptModal = useCallback(() => (
+    <Modal visible={showReceiptModal} animationType="slide" presentationStyle="formSheet">
+      <SafeAreaView style={styles.receiptModalContainer}>
+        <View style={styles.receiptHeader}>
+          <TouchableOpacity onPress={() => setShowReceiptModal(false)}>
+            <Text style={styles.receiptCloseButton}>✕</Text>
+          </TouchableOpacity>
+          <Text style={styles.receiptTitle}>Digital Receipt</Text>
+          <TouchableOpacity onPress={downloadReceipt}>
+            <Text style={styles.receiptDownloadButton}>Share</Text>
+          </TouchableOpacity>
         </View>
+
+        {digitalReceipt && (
+          <ScrollView style={styles.receiptContent}>
+            {/* Success Animation */}
+            <View style={styles.receiptSuccessSection}>
+          
+              <Text style={styles.receiptSuccessTitle}>Payment Successful!</Text>
+              <Text style={styles.receiptSuccessSubtitle}>
+                Your order has been placed and is being processed.
+              </Text>
+            </View>
+
+            {/* Receipt Details */}
+            <View style={styles.receiptDetailsCard}>
+              <View style={styles.receiptStoreHeader}>
+                <Text style={styles.receiptStoreName}>{digitalReceipt.storeInfo.name}</Text>
+                <Text style={styles.receiptStoreAddress}>{digitalReceipt.storeInfo.address}</Text>
+                <Text style={styles.receiptStorePhone}>{digitalReceipt.storeInfo.phone}</Text>
+              </View>
+
+              <View style={styles.receiptOrderInfo}>
+                <View style={styles.receiptInfoRow}>
+                  <Text style={styles.receiptInfoLabel}>Order Number:</Text>
+                  <Text style={styles.receiptInfoValue}>{digitalReceipt.orderNumber}</Text>
+                </View>
+                <View style={styles.receiptInfoRow}>
+                  <Text style={styles.receiptInfoLabel}>Date & Time:</Text>
+                  <Text style={styles.receiptInfoValue}>
+                    {digitalReceipt.date.toLocaleDateString()} {digitalReceipt.date.toLocaleTimeString()}
+                  </Text>
+                </View>
+                <View style={styles.receiptInfoRow}>
+                  <Text style={styles.receiptInfoLabel}>Payment Method:</Text>
+                  <Text style={styles.receiptInfoValue}>
+                    {digitalReceipt.paymentMethod} ****{digitalReceipt.cardLast4}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Items */}
+              <View style={styles.receiptItemsSection}>
+                <Text style={styles.receiptSectionTitle}>Items Purchased</Text>
+                {digitalReceipt.items.map((item, index) => (
+                  <View key={index} style={styles.receiptItem}>
+                    <View style={styles.receiptItemInfo}>
+                      <Text style={styles.receiptItemName}>{item.name}</Text>
+                      <Text style={styles.receiptItemDetails}>
+                        Qty: {item.quantity} × ${item.price.toFixed(2)}
+                      </Text>
+                    </View>
+                    <Text style={styles.receiptItemTotal}>
+                      ${(item.price * item.quantity).toFixed(2)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Totals */}
+              <View style={styles.receiptTotalsSection}>
+                <View style={styles.receiptTotalRow}>
+                  <Text style={styles.receiptTotalLabel}>Subtotal:</Text>
+                  <Text style={styles.receiptTotalValue}>${digitalReceipt.subtotal.toFixed(2)}</Text>
+                </View>
+                {digitalReceipt.discount > 0 && (
+                  <View style={styles.receiptTotalRow}>
+                    <Text style={[styles.receiptTotalLabel, styles.discountLabel]}>Discounts:</Text>
+                    <Text style={[styles.receiptTotalValue, styles.discountValue]}>
+                      -${digitalReceipt.discount.toFixed(2)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.receiptTotalRow}>
+                  <Text style={styles.receiptTotalLabel}>Tax:</Text>
+                  <Text style={styles.receiptTotalValue}>${digitalReceipt.tax.toFixed(2)}</Text>
+                </View>
+                <View style={styles.receiptTotalDivider} />
+                <View style={styles.receiptTotalRow}>
+                  <Text style={styles.receiptGrandTotalLabel}>TOTAL:</Text>
+                  <Text style={styles.receiptGrandTotalValue}>${digitalReceipt.total.toFixed(2)}</Text>
+                </View>
+              </View>
+
+              {/* Eco Impact */}
+              <View style={styles.receiptEcoSection}>
+                <Text style={styles.receiptSectionTitle}>🌱 Environmental Impact</Text>
+                <View style={styles.receiptEcoGrid}>
+                  <View style={styles.receiptEcoItem}>
+                    <Text style={styles.receiptEcoValue}>+{digitalReceipt.ecoPointsEarned}</Text>
+                    <Text style={styles.receiptEcoLabel}>EcoPoints Earned</Text>
+                  </View>
+                  <View style={styles.receiptEcoItem}>
+                    <Text style={styles.receiptEcoValue}>{digitalReceipt.co2Impact.toFixed(2)}kg</Text>
+                    <Text style={styles.receiptEcoLabel}>CO₂ Impact</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Thank You Message */}
+            <View style={styles.receiptThankYouSection}>
+              <Text style={styles.receiptThankYouTitle}>Thank you for shopping sustainably! 🌍</Text>
+              <Text style={styles.receiptThankYouText}>
+                Your purchase helps support eco-friendly practices and reduces environmental impact.
+              </Text>
+            </View>
+          </ScrollView>
+        )}
       </SafeAreaView>
     </Modal>
-  ), [showOrderModal, orderConfirmation]);
+  ), [showReceiptModal, digitalReceipt, downloadReceipt]);
 
   const OrdersModal = useCallback(() => (
     <Modal visible={showOrdersModal} animationType="slide" presentationStyle="formSheet">
@@ -819,126 +1209,130 @@ export default function CartTab() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.content}>
-        {/* Cart Header */}
+  <SafeAreaView style={styles.container}>
+    {localCartItems.length === 0 ? (
+      <>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>My Cart</Text>
-          <Text style={styles.headerSubtitle}>
-            {localCartItems.length} items • ${subtotal.toFixed(2)} total
-          </Text>
+          <Text style={styles.headerSubtitle}>Your cart is empty</Text>
         </View>
-
-        {/* Cart Items */}
-        <View style={styles.cartItemsSection}>
-          {localCartItems.map(item => (
-            <CartItemCard key={item.id} item={item} />
-          ))}
-        </View>
-
-        {/* AI Recipe Suggestions */}
-        {aiRecipes.length > 0 && (
-          <View style={styles.recipeSection}>
-            <View style={styles.recipeSectionHeader}>
-              <Text style={styles.recipeSectionTitle}>🤖 AI Recipe Suggestions</Text>
-              <Text style={styles.recipeSectionSubtitle}>
-                Based on your cart items
-              </Text>
-            </View>
-            <TouchableOpacity 
-              style={styles.viewRecipesButton}
-              onPress={() => setShowRecipeModal(true)}
-            >
-              <Text style={styles.viewRecipesButtonText}>
-                🍳 View {aiRecipes.length} Recipe{aiRecipes.length > 1 ? 's' : ''} • AI Matched: {aiRecipes[0]?.matchScore}%
-              </Text>
-            </TouchableOpacity>
+        <EmptyCartView />
+      </>
+    ) : (
+      <>
+        <ScrollView style={styles.content}>
+          {/* Cart Items */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>My Cart</Text>
+            <Text style={styles.headerSubtitle}>
+              {localCartItems.length} items • ${subtotal.toFixed(2)} total
+            </Text>
           </View>
-        )}
-
-        {/* Promo Code Section */}
-        <View style={styles.promoSection}>
-          <Text style={styles.promoTitle}>Promo Code</Text>
-          <View style={styles.promoInputContainer}>
-            <TextInput
-              style={styles.promoInput}
-              placeholder="Enter promo code"
-              value={promoCode}
-              onChangeText={setPromoCode}
-              autoCapitalize="characters"
-            />
-            <TouchableOpacity style={styles.promoButton} onPress={applyPromoCode}>
-              <Text style={styles.promoButtonText}>Apply</Text>
-            </TouchableOpacity>
+          <View style={styles.cartItemsSection}>
+            {localCartItems.map(item => (
+              <CartItemCard key={item.id} item={item} />
+            ))}
           </View>
-        </View>
-
-        {/* EcoPoints Section */}
-        <View style={styles.ecoPointsSection}>
-          <View style={styles.ecoPointsHeader}>
-            <Text style={styles.ecoPointsTitle}>💰 EcoPoints Rewards</Text>
-            <Text style={styles.ecoPointsBalance}>{userEcoPoints} points available</Text>
-          </View>
-          <TouchableOpacity 
-            style={styles.ecoPointsButton}
-            onPress={() => setShowDiscountModal(true)}
-          >
-            <Text style={styles.ecoPointsButtonText}>Use EcoPoints for Discounts</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Impact Summary */}
-        <View style={styles.impactSection}>
-          <Text style={styles.impactTitle}>🌍 Environmental Impact</Text>
-          <View style={styles.impactGrid}>
-            <View style={styles.impactCard}>
-              <Text style={styles.impactValue}>{totalCO2.toFixed(1)} kg</Text>
-              <Text style={styles.impactLabel}>CO₂ Impact</Text>
-            </View>
-            <View style={styles.impactCard}>
-              <Text style={styles.impactValue}>+{totalEcoPoints}</Text>
-              <Text style={styles.impactLabel}>EcoPoints Earned</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Order Summary */}
-        <View style={styles.summarySection}>
-          <Text style={styles.summaryTitle}>Order Summary</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
-          </View>
-          {totalDiscount > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, styles.discountLabel]}>Discounts</Text>
-              <Text style={[styles.summaryValue, styles.discountValue]}>-${totalDiscount.toFixed(2)}</Text>
+          {/* AI Optimizer Section */}
+          {aiOptimizations.length > 0 && (
+            <View style={styles.aiOptimizerSection}>
+              <View style={styles.aiOptimizerHeader}>
+                <Text style={styles.aiOptimizerTitle}>AI Cart Optimizer</Text>
+                <Text style={styles.aiOptimizerSubtitle}>
+                  {aiOptimizations.length} optimization{aiOptimizations.length > 1 ? 's' : ''} found
+                </Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.viewOptimizationsButton}
+                onPress={() => setShowAIOptimizerModal(true)}
+              >
+                <Text style={styles.viewOptimizationsButtonText}>
+                  💡 View Optimizations • Save up to ${aiOptimizations.reduce((sum, opt) => sum + (opt.potentialSavings || 0), 0).toFixed(2)}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryTotalLabel}>Total</Text>
-            <Text style={styles.summaryTotalValue}>${total.toFixed(2)}</Text>
+          {/* Promo Code Section */}
+          <View style={styles.promoSection}>
+            <Text style={styles.promoTitle}>Promo Code</Text>
+            <View style={styles.promoInputContainer}>
+              <TextInput
+                style={styles.promoInput}
+                placeholder="Enter promo code"
+                value={promoCode}
+                onChangeText={setPromoCode}
+                autoCapitalize="characters"
+              />
+              <TouchableOpacity style={styles.promoButton} onPress={applyPromoCode}>
+                <Text style={styles.promoButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={styles.summaryEcoPoints}>You'll earn {totalEcoPoints} EcoPoints!</Text>
+          {/* EcoPoints Section */}
+          <View style={styles.ecoPointsSection}>
+            <View style={styles.ecoPointsHeader}>
+              <Text style={styles.ecoPointsTitle}>💰 EcoPoints Rewards</Text>
+              <Text style={styles.ecoPointsBalance}>{userEcoPoints} points available</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.ecoPointsButton}
+              onPress={() => setShowDiscountModal(true)}
+            >
+              <Text style={styles.ecoPointsButtonText}>Use EcoPoints for Discounts</Text>
+            </TouchableOpacity>
+          </View>
+          {/* Impact Summary */}
+          <View style={styles.impactSection}>
+            <Text style={styles.impactTitle}>🌍 Environmental Impact</Text>
+            <View style={styles.impactGrid}>
+              <View style={styles.impactCard}>
+                <Text style={styles.impactValue}>{totalCO2.toFixed(2)} kg</Text>
+                <Text style={styles.impactLabel}>CO₂ Impact</Text>
+              </View>
+              <View style={styles.impactCard}>
+                <Text style={styles.impactValue}>+{totalEcoPoints}</Text>
+                <Text style={styles.impactLabel}>EcoPoints Earned</Text>
+              </View>
+            </View>
+          </View>
+          {/* Order Summary */}
+          <View style={styles.summarySection}>
+            <Text style={styles.summaryTitle}>Order Summary</Text>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
+            </View>
+            {totalDiscount > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, styles.discountLabel]}>Discounts</Text>
+                <Text style={[styles.summaryValue, styles.discountValue]}>-${totalDiscount.toFixed(2)}</Text>
+              </View>
+            )}
+            <View style={styles.summaryDivider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryTotalLabel}>Total</Text>
+              <Text style={styles.summaryTotalValue}>${total.toFixed(2)}</Text>
+            </View>
+            <Text style={styles.summaryEcoPoints}>You'll earn {totalEcoPoints} EcoPoints!</Text>
+          </View>
+        </ScrollView>
+        <View style={styles.checkoutSection}>
+          <TouchableOpacity style={styles.checkoutButton} onPress={proceedToCheckout}>
+            <Text style={styles.checkoutButtonText}>
+              Proceed to Checkout • ${total.toFixed(2)}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </ScrollView>
-
-      {/* Checkout Button */}
-      <View style={styles.checkoutSection}>
-        <TouchableOpacity style={styles.checkoutButton} onPress={proceedToCheckout}>
-          <Text style={styles.checkoutButtonText}>
-            Place Order • ${total.toFixed(2)}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <RecipeModal />
-      <OrderConfirmationModal />
-      <OrdersModal />
-      <DiscountModal />
-    </SafeAreaView>
-  );
+      </>
+    )}
+    {/* Modals are now always rendered */}
+    <AIOptimizerModal />
+    <PaymentModal />
+    <ReceiptModal />
+    <OrdersModal />
+    <DiscountModal />
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -1175,7 +1569,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  recipeSection: {
+  
+  // AI Optimizer Section
+  aiOptimizerSection: {
     backgroundColor: 'white',
     margin: 16,
     borderRadius: 12,
@@ -1186,32 +1582,33 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  recipeSectionHeader: {
+  aiOptimizerHeader: {
     marginBottom: 12,
   },
-  recipeSectionTitle: {
+  aiOptimizerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 4,
   },
-  recipeSectionSubtitle: {
+  aiOptimizerSubtitle: {
     fontSize: 14,
     color: '#6B7280',
   },
-  viewRecipesButton: {
-    backgroundColor: '#F0FDF4',
+  viewOptimizationsButton: {
+    backgroundColor: '#EBF8FF',
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: '#0071CE',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  viewRecipesButtonText: {
-    color: '#059669',
+  viewOptimizationsButtonText: {
+    color: '#0071CE',
     fontSize: 14,
     fontWeight: '600',
   },
+
   promoSection: {
     backgroundColor: 'white',
     margin: 16,
@@ -1452,129 +1849,143 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  recipesIntroTitle: {
+
+  // AI Optimizer Modal Styles
+  optimizationIntroTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 8,
   },
-  recipesIntroText: {
+  optimizationIntroText: {
     fontSize: 16,
     color: '#6B7280',
     marginBottom: 20,
   },
-  recipeCard: {
+  cartStatsCard: {
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cartStatsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  cartStatsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  cartStatItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    flex: 1,
+    minWidth: '45%',
+    alignItems: 'center',
+  },
+  cartStatValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  cartStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  optimizationCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  recipeHeader: {
+  optimizationCardHigh: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+  },
+  optimizationCardMedium: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  optimizationHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  recipeName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    flex: 1,
-    marginRight: 12,
-  },
-  recipeMatchBadge: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  recipeMatchText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  recipeDescription: {
-    fontSize: 14,
-    color: '#6B7280',
     marginBottom: 12,
   },
-  recipeInfo: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16,
+  optimizationIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
-  recipeInfoItem: {
-    fontSize: 12,
-    color: '#374151',
-    fontWeight: '500',
+  optimizationInfo: {
+    flex: 1,
   },
-  recipeIngredients: {
-    marginBottom: 16,
-  },
-  recipeIngredientsTitle: {
+  optimizationTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 8,
-  },
-  recipeAvailableText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#10B981',
     marginBottom: 4,
   },
-  recipeAvailableIngredient: {
-    fontSize: 12,
-    color: '#059669',
-    marginLeft: 8,
-    marginBottom: 2,
-  },
-  recipeMissingText: {
+  optimizationDescription: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#F59E0B',
-    marginTop: 8,
-    marginBottom: 4,
+    color: '#6B7280',
   },
-  recipeMissingIngredient: {
-    fontSize: 12,
-    color: '#D97706',
-    marginLeft: 8,
-    marginBottom: 2,
+  priorityBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  recipeSustainability: {
+  priorityHigh: {
+    backgroundColor: '#FEE2E2',
+  },
+  priorityMedium: {
+    backgroundColor: '#FEF3C7',
+  },
+  priorityLow: {
+    backgroundColor: '#F0FDF4',
+  },
+  priorityText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  optimizationImpact: {
     backgroundColor: '#F0FDF4',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  recipeSustainabilityTitle: {
+  optimizationImpactText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#059669',
-    marginBottom: 4,
-  },
-  recipeSustainabilityText: {
-    fontSize: 12,
     color: '#047857',
+    fontWeight: '500',
   },
-  viewRecipeButton: {
+  optimizationActionButton: {
     backgroundColor: '#0071CE',
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
   },
-  viewRecipeButtonText: {
+  optimizationActionText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
   },
-  noRecipesCard: {
+  noOptimizationsCard: {
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 40,
@@ -1585,104 +1996,447 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  noRecipesIcon: {
+  noOptimizationsIcon: {
     fontSize: 48,
     marginBottom: 16,
   },
-  noRecipesTitle: {
+  noOptimizationsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 8,
   },
-  noRecipesText: {
+  noOptimizationsText: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
   },
-  orderModalContent: {
+
+  // Payment Modal Styles
+  paymentModalContainer: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  paymentHeader: {
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingTop: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 40,
   },
-  orderSuccessIcon: {
-    fontSize: 80,
-    marginBottom: 24,
+  paymentBackButton: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  orderSuccessTitle: {
+  paymentTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  paymentSecure: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  paymentContent: {
+    flex: 1,
+    padding: 20,
+  },
+  paymentSummaryCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  paymentSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  paymentSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  paymentSummaryLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  paymentSummaryValue: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  discountText: {
+    color: '#059669',
+  },
+  paymentSummaryDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+  paymentSummaryTotalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  paymentSummaryTotalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  paymentFormCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  paymentFormTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  paymentInputGroup: {
+    marginBottom: 16,
+  },
+  paymentInputLabel: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  paymentInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    backgroundColor: 'white',
+  },
+  paymentInputRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  paymentInputHalf: {
+    flex: 1,
+  },
+  securityCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  securityTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  securityFeatures: {
+    gap: 8,
+  },
+  securityFeature: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '500',
+  },
+  paymentButtonContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  paymentButton: {
+    backgroundColor: '#059669',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  paymentButtonProcessing: {
+    backgroundColor: '#9CA3AF',
+  },
+  paymentButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  processingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  processingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'white',
+  },
+
+  // Receipt Modal Styles
+  receiptModalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  receiptHeader: {
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  receiptCloseButton: {
+    fontSize: 20,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  receiptTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  receiptDownloadButton: {
+    fontSize: 14,
+    color: '#0071CE',
+    fontWeight: '600',
+  },
+  receiptContent: {
+    flex: 1,
+    padding: 20,
+  },
+  receiptSuccessSection: {
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 30,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  receiptSuccessIcon: {
+    fontSize: 60,
+    marginBottom: 16,
+  },
+  receiptSuccessTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#059669',
     marginBottom: 8,
     textAlign: 'center',
   },
-  orderSuccessSubtitle: {
+  receiptSuccessSubtitle: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 32,
   },
-  orderSummaryCard: {
+  receiptDetailsCard: {
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 20,
-    width: '100%',
-    marginBottom: 32,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
-  orderSummaryTitle: {
+  receiptStoreHeader: {
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  receiptStoreName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 16,
+    marginBottom: 4,
+  },
+  receiptStoreAddress: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  receiptStorePhone: {
+    fontSize: 14,
+    color: '#6B7280',
     textAlign: 'center',
   },
-  orderSummaryRow: {
+  receiptOrderInfo: {
+    marginBottom: 16,
+  },
+  receiptInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  orderSummaryLabel: {
+  receiptInfoLabel: {
     fontSize: 14,
     color: '#6B7280',
   },
-  orderSummaryValue: {
+  receiptInfoValue: {
     fontSize: 14,
     color: '#1F2937',
     fontWeight: '500',
   },
-  orderModalActions: {
-    width: '100%',
-    gap: 12,
+  receiptItemsSection: {
+    marginBottom: 16,
   },
-  viewOrdersButton: {
-    backgroundColor: '#0071CE',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  viewOrdersButtonText: {
-    color: 'white',
+  receiptSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
   },
-  continueShoppingButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
+  receiptItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  continueShoppingButtonText: {
-    color: '#374151',
-    fontSize: 16,
+  receiptItemInfo: {
+    flex: 1,
+  },
+  receiptItemName: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  receiptItemDetails: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  receiptItemTotal: {
+    fontSize: 14,
+    color: '#1F2937',
     fontWeight: '600',
   },
+  receiptTotalsSection: {
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  receiptTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  receiptTotalLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  receiptTotalValue: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  receiptTotalDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+  receiptGrandTotalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  receiptGrandTotalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  receiptEcoSection: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  receiptEcoGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  receiptEcoItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  receiptEcoValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 4,
+  },
+  receiptEcoLabel: {
+    fontSize: 12,
+    color: '#047857',
+    textAlign: 'center',
+  },
+  receiptThankYouSection: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  receiptThankYouTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  receiptThankYouText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Order Card Styles
   orderCard: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -1771,6 +2525,8 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+
+  // Discount Modal Styles
   discountsTitle: {
     fontSize: 20,
     fontWeight: 'bold',

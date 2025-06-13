@@ -1,7 +1,8 @@
-// app/(customer)/(tabs)/challenges.tsx
-import React, { useState } from 'react';
+// app/(customer)/(tabs)/challenges.tsx - Walmart-Trackable Sustainability Challenges
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
+  Animated,
+  Dimensions,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -11,337 +12,574 @@ import {
   View
 } from 'react-native';
 
-const activeChallenges = [
+const { width: screenWidth } = Dimensions.get('window');
+
+// Simulated Walmart API integration for trackable challenges
+const simulateWalmartAIAPI = async (context: string) => {
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  const walmartTrackableChallenges = {
+    purchase_behavior: {
+      title: "Great Value Green Week",
+      description: "Choose Walmart's sustainable Great Value products for 80% of your grocery purchases this week",
+      category: "Sustainable Shopping",
+      difficulty: "Easy",
+      target: 20,
+      unit: "sustainable products",
+      reward: 300,
+      trackingMethod: "Receipt scanning & loyalty program data",
+      walmartBenefit: "Promotes Walmart's eco-friendly private label products",
+      aiTips: [
+        "Great Value Organic products have 30% lower carbon footprint",
+        "Look for 'Project Gigaton' partner products in your cart",
+        "Walmart tracks your sustainable choices automatically",
+        "Every Great Value sustainable purchase = 5 bonus EcoPoints"
+      ]
+    },
+    packaging_reduction: {
+      title: "Zero Plastic Bag Champion",
+      description: "Complete 10 shopping trips using only reusable bags at Walmart checkouts",
+      category: "Packaging Reduction",
+      difficulty: "Medium",
+      target: 10,
+      unit: "bag-free trips",
+      reward: 250,
+      trackingMethod: "Checkout system plastic bag usage tracking",
+      walmartBenefit: "Reduces Walmart's plastic bag costs and environmental impact",
+      aiTips: [
+        "Walmart saves $0.05 per avoided plastic bag",
+        "Keep reusable bags in your car for convenience",
+        "Walmart+ members get bag reminder notifications",
+        "Self-checkout stations track and reward bag-free purchases"
+      ]
+    },
+    digital_engagement: {
+      title: "Digital Receipt Earth Saver",
+      description: "Use digital receipts for all Walmart purchases to eliminate paper waste",
+      category: "Digital Sustainability",
+      difficulty: "Easy",
+      target: 15,
+      unit: "digital receipts",
+      reward: 200,
+      trackingMethod: "Walmart app digital receipt usage analytics",
+      walmartBenefit: "Reduces paper costs and improves customer data insights",
+      aiTips: [
+        "Each digital receipt saves 0.01kg of paper waste",
+        "Access receipts instantly in Walmart app",
+        "Digital receipts enable better return tracking",
+        "Automatic expense categorization for budgeting"
+      ]
+    },
+    local_sourcing: {
+      title: "Local Heroes Walmart Challenge",
+      description: "Purchase 25 locally-sourced products available at your Walmart store",
+      category: "Local Impact",
+      difficulty: "Medium",
+      target: 25,
+      unit: "local products",
+      reward: 350,
+      trackingMethod: "Product origin tracking via UPC codes and receipts",
+      walmartBenefit: "Supports Walmart's local sourcing initiatives and reduces transport costs",
+      aiTips: [
+        "Look for 'Local' tags in Walmart app product descriptions",
+        "Local products have 50% lower transport emissions",
+        "Support farmers within 250 miles of your store",
+        "Seasonal local produce has higher freshness and nutrition"
+      ]
+    },
+    food_waste_reduction: {
+      title: "Smart Shopping Waste Warrior",
+      description: "Reduce food waste by using Walmart's meal planning and smaller package options",
+      category: "Food Waste Prevention",
+      difficulty: "Smart",
+      target: 30,
+      unit: "% waste reduction",
+      reward: 400,
+      trackingMethod: "Purchase pattern analysis and app-based meal planning usage",
+      walmartBenefit: "Increases customer satisfaction and reduces markdown costs",
+      aiTips: [
+        "Use Walmart's meal planning feature in the app",
+        "Buy 'ugly' produce at 30% discount to prevent waste",
+        "Choose family-size vs individual packages for better value",
+        "Walmart tracks your purchase patterns to suggest optimal quantities"
+      ]
+    },
+    pickup_optimization: {
+      title: "Pickup Planet Protector",
+      description: "Choose curbside pickup for 8 out of 10 orders to reduce delivery emissions",
+      category: "Carbon Reduction",
+      difficulty: "Easy",
+      target: 8,
+      unit: "pickup orders",
+      reward: 275,
+      trackingMethod: "Order fulfillment method tracking in Walmart systems",
+      walmartBenefit: "Reduces delivery costs and consolidates trips for efficiency",
+      aiTips: [
+        "Pickup has 60% lower carbon footprint than individual delivery",
+        "Consolidate orders to maximize trip efficiency",
+        "Walmart optimizes pickup routes for minimal environmental impact",
+        "Pickup slots during off-peak hours reduce traffic congestion"
+      ]
+    }
+  };
+
+  const responses = Object.values(walmartTrackableChallenges);
+  return responses[Math.floor(Math.random() * responses.length)];
+};
+
+// Community stats with Walmart-specific metrics
+const walmartCommunityStats = {
+  totalCustomers: 89432,
+  sustainableProductsSold: 15847,
+  plasticBagsSaved: 23891,
+  localProductsPurchased: 8934
+};
+
+// Walmart-trackable active challenges
+const activeWalmartChallenges = [
   {
     id: 1,
-    title: 'Zero Waste Week',
-    description: 'Reduce your grocery waste to zero for 7 consecutive days',
-    progress: 65,
-    target: 7,
-    current: 4.5,
-    unit: 'days',
-    reward: 250,
-    difficulty: 'Hard',
-    category: 'Waste Reduction',
-    timeLeft: '3 days',
-    tips: [
-      'Plan your meals in advance',
-      'Buy only what you need',
-      'Use leftovers creatively',
-      'Compost organic waste'
-    ]
+    title: 'Organic Walmart Week',
+    description: 'Choose organic products for 70% of your grocery purchases at Walmart',
+    progress: 75,
+    target: 20,
+    current: 15,
+    unit: 'organic items',
+    reward: 280,
+    difficulty: 'Medium',
+    category: 'Organic Shopping',
+    timeLeft: '4 days',
+    impactValue: 8.2,
+    impactUnit: 'kg CO₂',
+    participants: 4521,
+    streak: 4,
+    trackingMethod: 'Receipt analysis & UPC code tracking',
+    walmartBenefit: 'Promotes Walmart\'s organic product line'
   },
   {
     id: 2,
-    title: 'Green Commute Challenge',
-    description: 'Use eco-friendly transportation for your shopping trips',
-    progress: 80,
-    target: 10,
-    current: 8,
-    unit: 'trips',
-    reward: 150,
-    difficulty: 'Medium',
-    category: 'Transportation',
+    title: 'Walmart+ Eco Optimizer',
+    description: 'Use Walmart+ benefits to reduce shopping trips and choose sustainable delivery options',
+    progress: 60,
+    target: 12,
+    current: 7,
+    unit: 'optimized trips',
+    reward: 320,
+    difficulty: 'Smart',
+    category: 'Trip Optimization',
     timeLeft: '1 week',
-    tips: [
-      'Walk or bike to nearby stores',
-      'Use public transportation',
-      'Combine multiple errands',
-      'Shop during off-peak hours'
-    ]
-  },
-  {
-    id: 3,
-    title: 'Plant-Based Pioneer',
-    description: 'Choose plant-based alternatives for 80% of your protein purchases',
-    progress: 45,
-    target: 20,
-    current: 9,
-    unit: 'items',
-    reward: 300,
-    difficulty: 'Medium',
-    category: 'Diet Impact',
-    timeLeft: '2 weeks',
-    tips: [
-      'Try lentils and beans',
-      'Explore tofu and tempeh',
-      'Consider plant-based milk',
-      'Read about protein combinations'
-    ]
-  }
-];
-
-const availableChallenges = [
-  {
-    id: 4,
-    title: 'Local Hero',
-    description: 'Support local businesses by buying 15 locally-sourced products',
-    target: 15,
-    unit: 'products',
-    reward: 200,
-    difficulty: 'Easy',
-    category: 'Community',
-    duration: '2 weeks',
-    requirements: ['Must be first-time local purchase', 'Products must be from within 50 miles']
-  },
-  {
-    id: 5,
-    title: 'Packaging Warrior',
-    description: 'Choose products with minimal or recyclable packaging',
-    target: 25,
-    unit: 'products',
-    reward: 180,
-    difficulty: 'Medium',
-    category: 'Waste Reduction',
-    duration: '10 days',
-    requirements: ['Focus on bulk items', 'Avoid single-use plastics']
-  },
-  {
-    id: 6,
-    title: 'Energy Saver',
-    description: 'Reduce your shopping carbon footprint by 30%',
-    target: 30,
-    unit: 'percent',
-    reward: 400,
-    difficulty: 'Hard',
-    category: 'Energy',
-    duration: '1 month',
-    requirements: ['Track all purchases', 'Focus on low-impact items']
+    impactValue: 12.4,
+    impactUnit: 'kg CO₂',
+    participants: 2847,
+    streak: 2,
+    trackingMethod: 'Walmart+ app usage analytics and order consolidation tracking',
+    walmartBenefit: 'Increases Walmart+ engagement and reduces operational costs'
   }
 ];
 
 export default function ChallengesTab() {
-  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
   const [showChallengeModal, setShowChallengeModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('active'); // 'active' or 'available'
+  const [activeTab, setActiveTab] = useState('active');
+  const [liveStats, setLiveStats] = useState(walmartCommunityStats);
+  const [aiChallenges, setAiChallenges] = useState<any[]>([]);
+  const [availableAiChallenges, setAvailableAiChallenges] = useState<any[]>([]);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationData, setNotificationData] = useState<any>(null);
+  const [slideAnimation] = useState(new Animated.Value(-100));
+
+  useEffect(() => {
+    generateWalmartSmartChallenges();
+    generateWalmartAvailableChallenges();
+  }, []);
+
+  // Simulate real-time Walmart stats updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveStats(prev => ({
+        ...prev,
+        sustainableProductsSold: prev.sustainableProductsSold + Math.floor(Math.random() * 5),
+        plasticBagsSaved: prev.plasticBagsSaved + Math.floor(Math.random() * 8),
+        localProductsPurchased: prev.localProductsPurchased + Math.floor(Math.random() * 3)
+      }));
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const generateWalmartSmartChallenges = async () => {
+    setIsGeneratingAI(true);
+    try {
+      const challenge1 = await simulateWalmartAIAPI("customer purchase behavior analysis");
+      const challenge2 = await simulateWalmartAIAPI("store traffic optimization");
+      
+      setAiChallenges([
+        { id: 'walmart_ai_1', ...challenge1, aiGenerated: true },
+        { id: 'walmart_ai_2', ...challenge2, aiGenerated: true, isTeamChallenge: true, currentParticipants: 1247, targetParticipants: 2000 }
+      ]);
+    } catch (error) {
+      console.error('Walmart AI generation failed:', error);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const generateWalmartAvailableChallenges = async () => {
+    try {
+      const challenge1 = await simulateWalmartAIAPI("digital engagement optimization");
+      const challenge2 = await simulateWalmartAIAPI("local sourcing promotion");
+      const challenge3 = await simulateWalmartAIAPI("food waste reduction");
+      
+      setAvailableAiChallenges([
+        { id: 'walmart_available_1', ...challenge1, aiGenerated: true, duration: '2 weeks' },
+        { id: 'walmart_available_2', ...challenge2, aiGenerated: true, duration: '3 weeks' },
+        { id: 'walmart_available_3', ...challenge3, aiGenerated: true, duration: '1 month', trending: true }
+      ]);
+    } catch (error) {
+      console.error('Walmart AI generation failed:', error);
+    }
+  };
+
+  const showJoinNotification = (challenge: any) => {
+    setNotificationData(challenge);
+    setShowNotification(true);
+    
+    Animated.sequence([
+      Animated.timing(slideAnimation, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.delay(4000),
+      Animated.timing(slideAnimation, {
+        toValue: -100,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ]).start(() => {
+      setShowNotification(false);
+    });
+  };
+
+  const joinChallenge = (challenge: any) => {
+    showJoinNotification(challenge);
+    setShowChallengeModal(false);
+    console.log(`Joined Walmart trackable challenge: ${challenge.title}`);
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Easy': return '#10B981';
       case 'Medium': return '#F59E0B';
       case 'Hard': return '#EF4444';
+      case 'Smart': return '#8B5CF6';
+      case 'Community': return '#3B82F6';
       default: return '#6B7280';
     }
   };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Waste Reduction': return '♻️';
-      case 'Transportation': return '🚲';
-      case 'Diet Impact': return '🌱';
-      case 'Community': return '🏘️';
-      case 'Energy': return '⚡';
+      case 'Sustainable Shopping': return '🛒';
+      case 'Packaging Reduction': return '♻️';
+      case 'Digital Sustainability': return '📱';
+      case 'Local Impact': return '🏘️';
+      case 'Food Waste Prevention': return '🥗';
+      case 'Carbon Reduction': return '🌍';
+      case 'Organic Shopping': return '🌱';
+      case 'Trip Optimization': return '🚗';
       default: return '🎯';
     }
   };
 
-  const joinChallenge = (challenge: any) => {
-    Alert.alert(
-      'Join Challenge',
-      `Are you ready to start "${challenge.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Join', 
-          onPress: () => {
-            Alert.alert('Success!', `You've joined the ${challenge.title} challenge. Good luck!`);
-            setShowChallengeModal(false);
+  const JoinNotification = () => {
+    if (!showNotification || !notificationData) return null;
+
+    return (
+      <Animated.View 
+        style={[
+          styles.notificationContainer,
+          {
+            transform: [{ translateY: slideAnimation }]
           }
-        }
-      ]
+        ]}
+      >
+        <View style={styles.notificationCard}>
+          <View style={styles.notificationHeader}>
+            <Text style={styles.notificationIcon}>🎉</Text>
+            <View style={styles.notificationContent}>
+              <Text style={styles.notificationTitle}>Walmart Challenge Joined!</Text>
+              <Text style={styles.notificationMessage}>
+                "{notificationData.title}" - Walmart will track your progress automatically
+              </Text>
+            </View>
+            <View style={styles.notificationReward}>
+              <Text style={styles.notificationRewardText}>+{notificationData.reward}</Text>
+              <Text style={styles.notificationRewardLabel}>pts potential</Text>
+            </View>
+          </View>
+          <View style={styles.notificationFooter}>
+            <Text style={styles.notificationFooterText}>
+              🛒 Your purchases at Walmart will automatically count towards this challenge!
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
     );
   };
 
-  type Challenge = {
-    id: number;
-    title: string;
-    description: string;
-    target: number;
-    unit: string;
-    reward: number;
-    difficulty: string;
-    category: string;
-    // Optional fields for active challenges
-    progress?: number;
-    current?: number;
-    timeLeft?: string;
-    tips?: string[];
-    // Optional fields for available challenges
-    duration?: string;
-    requirements?: string[];
-  };
+  const WalmartStatsCard = () => (
+    <View style={styles.liveStatsCard}>
+      <View style={styles.statsHeader}>
+        <Text style={styles.liveStatsTitle}>Live Walmart Sustainability</Text>
+        <View style={styles.walmartBadge}>
+          <Text style={styles.walmartBadgeText}>Walmart Tracked</Text>
+        </View>
+      </View>
+      <View style={styles.statsGrid}>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{liveStats.sustainableProductsSold.toLocaleString()}</Text>
+          <Text style={styles.statLabel}>sustainable products sold today</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{liveStats.plasticBagsSaved.toLocaleString()}</Text>
+          <Text style={styles.statLabel}>plastic bags saved today</Text>
+        </View>
+      </View>
+      <View style={styles.liveDot}>
+        <View style={styles.pulseDot} />
+        <Text style={styles.liveText}>Real-time Walmart data</Text>
+      </View>
+    </View>
+  );
 
-  const ChallengeCard = ({
-    challenge,
-    isActive = true,
-  }: {
-    challenge: Challenge;
-    isActive?: boolean;
-  }) => (
+  const WalmartSmartCard = ({ challenge }: { challenge: any }) => (
     <TouchableOpacity 
-      style={styles.challengeCard}
+      style={styles.smartCard}
       onPress={() => {
         setSelectedChallenge(challenge);
         setShowChallengeModal(true);
       }}
     >
-      <View style={styles.challengeHeader}>
-        <View style={styles.challengeHeaderLeft}>
-          <Text style={styles.challengeIcon}>{getCategoryIcon(challenge.category)}</Text>
-          <View style={styles.challengeHeaderText}>
-            <Text style={styles.challengeTitle}>{challenge.title}</Text>
-            <Text style={styles.challengeCategory}>{challenge.category}</Text>
-          </View>
-        </View>
-        <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(challenge.difficulty) + '20' }]}>
-          <Text style={[styles.difficultyText, { color: getDifficultyColor(challenge.difficulty) }]}>
-            {challenge.difficulty}
-          </Text>
+      <View style={styles.smartCardHeader}>
+        <Text style={styles.smartCardIcon}>{getCategoryIcon(challenge.category)}</Text>
+        <View style={styles.smartBadge}>
+          <Text style={styles.smartBadgeText}>AI + 🛒</Text>
         </View>
       </View>
-
-      <Text style={styles.challengeDescription}>{challenge.description}</Text>
-
-      {isActive ? (
-        <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressText}>
-              {'current' in challenge && typeof challenge.current !== 'undefined'
-                ? `${challenge.current} / ${challenge.target} ${challenge.unit}`
-                : `${challenge.target} ${challenge.unit}`}
-            </Text>
-            {'progress' in challenge && typeof challenge.progress !== 'undefined' && (
-              <Text style={styles.progressPercentage}>{challenge.progress}%</Text>
-            )}
-          </View>
-          <View style={styles.progressTrack}>
+      <Text style={styles.smartCardTitle}>{challenge.title}</Text>
+      <Text style={styles.smartCardDesc}>{challenge.description}</Text>
+      
+      {/* Walmart Tracking Info */}
+      <View style={styles.trackingInfo}>
+        <Text style={styles.trackingLabel}>📊 Tracking:</Text>
+        <Text style={styles.trackingMethod}>{challenge.trackingMethod}</Text>
+      </View>
+      
+      <View style={styles.smartCardFooter}>
+        <Text style={styles.smartReward}>🏆 {challenge.reward} pts</Text>
+        <Text style={styles.walmartBenefit}>🛒 Auto-tracked</Text>
+      </View>
+      
+      {challenge.isTeamChallenge && (
+        <View style={styles.teamProgress}>
+          <Text style={styles.teamProgressText}>
+            {challenge.currentParticipants}/{challenge.targetParticipants} Walmart customers joined
+          </Text>
+          <View style={styles.teamProgressBar}>
             <View 
               style={[
-                styles.progressFill, 
-                { width: `${'progress' in challenge && typeof challenge.progress !== 'undefined' ? challenge.progress : 0}%` }
+                styles.teamProgressFill, 
+                { width: `${(challenge.currentParticipants / challenge.targetParticipants) * 100}%` }
               ]} 
             />
           </View>
-          <View style={styles.challengeFooter}>
-            {'timeLeft' in challenge && (
-              <Text style={styles.timeLeft}>⏰ {challenge.timeLeft} left</Text>
-            )}
-            <Text style={styles.rewardText}>🏆 {challenge.reward} points</Text>
-          </View>
-        </View>
-      ) : (
-        <View style={styles.availableChallengeFooter}>
-          <View style={styles.challengeDetails}>
-            <Text style={styles.challengeTarget}>{challenge.target} {challenge.unit}</Text>
-            <Text style={styles.challengeDuration}>📅 {challenge.duration}</Text>
-          </View>
-          <Text style={styles.rewardText}>🏆 {challenge.reward} points</Text>
         </View>
       )}
     </TouchableOpacity>
   );
 
-  const ChallengeModal = () => (
+  const WalmartChallengeCard = ({ challenge, isAvailable = false }: { challenge: any, isAvailable?: boolean }) => (
+    <TouchableOpacity 
+      style={[styles.challengeCard, challenge.trending && styles.trendingCard]}
+      onPress={() => {
+        setSelectedChallenge(challenge);
+        setShowChallengeModal(true);
+      }}
+    >
+      <View style={styles.cardHeader}>
+        <View style={styles.cardHeaderLeft}>
+          <Text style={styles.cardIcon}>{getCategoryIcon(challenge.category)}</Text>
+          <View style={styles.cardInfo}>
+            <Text style={styles.cardTitle}>{challenge.title}</Text>
+            <Text style={styles.cardCategory}>{challenge.category}</Text>
+          </View>
+        </View>
+        <View style={styles.cardBadges}>
+          <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(challenge.difficulty) + '20' }]}>
+            <Text style={[styles.difficultyText, { color: getDifficultyColor(challenge.difficulty) }]}>
+              {challenge.difficulty}
+            </Text>
+          </View>
+          <View style={styles.walmartTrackingBadge}>
+            <Text style={styles.walmartTrackingText}>🛒 Tracked</Text>
+          </View>
+          {challenge.streak && !isAvailable && (
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakText}>🔥 {challenge.streak}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <Text style={styles.cardDescription}>{challenge.description}</Text>
+
+      {/* Walmart Benefit */}
+      <View style={styles.walmartBenefitBox}>
+        <Text style={styles.walmartBenefitLabel}>🛒 Walmart Benefit:</Text>
+        <Text style={styles.walmartBenefitText}>{challenge.walmartBenefit}</Text>
+      </View>
+
+      {!isAvailable ? (
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressText}>
+              {challenge.current} / {challenge.target} {challenge.unit}
+            </Text>
+            <Text style={styles.progressPercentage}>{challenge.progress}%</Text>
+          </View>
+          
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { width: `${challenge.progress}%` }
+              ]} 
+            />
+          </View>
+
+          <View style={styles.cardFooter}>
+            <View style={styles.impactInfo}>
+              <Text style={styles.impactText}>
+                💚 {challenge.impactValue} {challenge.impactUnit} saved
+              </Text>
+              <Text style={styles.participantsText}>
+                👥 {challenge.participants.toLocaleString()} customers participating
+              </Text>
+            </View>
+            <View style={styles.rewardInfo}>
+              <Text style={styles.timeLeft}>⏰ {challenge.timeLeft}</Text>
+              <Text style={styles.rewardText}>🏆 {challenge.reward} pts</Text>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.availableChallengeFooter}>
+          <View style={styles.challengeDetails}>
+            <Text style={styles.challengeTarget}>
+              Target: {challenge.target} {challenge.unit}
+            </Text>
+            <Text style={styles.challengeDuration}>
+              ⏱️ Duration: {challenge.duration}
+            </Text>
+          </View>
+          <Text style={styles.rewardText}>🏆 {challenge.reward} pts</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  const WalmartChallengeModal = () => (
     <Modal visible={showChallengeModal} animationType="slide" presentationStyle="formSheet">
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={() => setShowChallengeModal(false)}>
             <Text style={styles.modalBackButton}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Challenge Details</Text>
-          <View />
+          <Text style={styles.modalTitle}>Walmart Challenge</Text>
+          <TouchableOpacity>
+            <Text style={styles.shareButton}>Share</Text>
+          </TouchableOpacity>
         </View>
 
         {selectedChallenge && (
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             <View style={styles.modalChallengeHeader}>
               <Text style={styles.modalChallengeIcon}>
                 {getCategoryIcon(selectedChallenge.category)}
               </Text>
               <Text style={styles.modalChallengeTitle}>{selectedChallenge.title}</Text>
-              <View style={[
-                styles.modalDifficultyBadge, 
-                { backgroundColor: getDifficultyColor(selectedChallenge.difficulty) }
-              ]}>
-                <Text style={styles.modalDifficultyText}>{selectedChallenge.difficulty}</Text>
+              <View style={styles.modalBadgesRow}>
+                <View style={[
+                  styles.modalDifficultyBadge, 
+                  { backgroundColor: getDifficultyColor(selectedChallenge.difficulty) }
+                ]}>
+                  <Text style={styles.modalDifficultyText}>{selectedChallenge.difficulty}</Text>
+                </View>
+                <View style={styles.modalWalmartBadge}>
+                  <Text style={styles.modalWalmartBadgeText}>🛒 Walmart Tracked</Text>
+                </View>
               </View>
             </View>
 
             <Text style={styles.modalDescription}>{selectedChallenge.description}</Text>
 
-            {selectedChallenge.progress !== undefined ? (
-              // Active challenge details
-              <View style={styles.modalProgressSection}>
-                <Text style={styles.modalSectionTitle}>Your Progress</Text>
-                <View style={styles.modalProgressCard}>
-                  <View style={styles.modalProgressHeader}>
-                    <Text style={styles.modalProgressText}>
-                      {selectedChallenge.current} / {selectedChallenge.target} {selectedChallenge.unit}
-                    </Text>
-                    <Text style={styles.modalProgressPercentage}>{selectedChallenge.progress}%</Text>
-                  </View>
-                  <View style={styles.modalProgressTrack}>
-                    <View 
-                      style={[styles.modalProgressFill, { width: `${selectedChallenge.progress}%` }]} 
-                    />
-                  </View>
-                  <Text style={styles.modalTimeLeft}>⏰ {selectedChallenge.timeLeft} remaining</Text>
-                </View>
+            {/* Walmart Tracking Explanation */}
+            <View style={styles.trackingSection}>
+              <Text style={styles.sectionTitle}>How Walmart Tracks This</Text>
+              <View style={styles.trackingCard}>
+                <Text style={styles.trackingExplanation}>{selectedChallenge.trackingMethod}</Text>
+                <Text style={styles.trackingBenefit}>
+                  <Text style={styles.trackingBenefitLabel}>Business Impact: </Text>
+                  {selectedChallenge.walmartBenefit}
+                </Text>
+              </View>
+            </View>
 
-                <Text style={styles.modalSectionTitle}>Tips for Success</Text>
-                <View style={styles.tipsContainer}>
-                  {selectedChallenge.tips && selectedChallenge.tips.map((tip, index) => (
-                    <View key={index} style={styles.tipItem}>
-                      <Text style={styles.tipBullet}>💡</Text>
-                      <Text style={styles.tipText}>{tip}</Text>
+            {/* AI Tips Section */}
+            {selectedChallenge.aiTips && (
+              <View style={styles.aiTipsSection}>
+                <Text style={styles.sectionTitle}>AI-Powered Tips</Text>
+                <View style={styles.aiTipsContainer}>
+                  {selectedChallenge.aiTips.map((tip: string, index: number) => (
+                    <View key={index} style={styles.aiTipItem}>
+                      <Text style={styles.aiTipBullet}>💡</Text>
+                      <Text style={styles.aiTipText}>{tip}</Text>
                     </View>
                   ))}
                 </View>
               </View>
-            ) : (
-              // Available challenge details
-              <View style={styles.modalDetailsSection}>
-                <View style={styles.modalInfoGrid}>
-                  <View style={styles.modalInfoItem}>
-                    <Text style={styles.modalInfoLabel}>Target</Text>
-                    <Text style={styles.modalInfoValue}>
-                      {selectedChallenge.target} {selectedChallenge.unit}
-                    </Text>
-                  </View>
-                  <View style={styles.modalInfoItem}>
-                    <Text style={styles.modalInfoLabel}>Duration</Text>
-                    <Text style={styles.modalInfoValue}>{selectedChallenge.duration}</Text>
-                  </View>
-                  <View style={styles.modalInfoItem}>
-                    <Text style={styles.modalInfoLabel}>Reward</Text>
-                    <Text style={styles.modalInfoValue}>{selectedChallenge.reward} points</Text>
-                  </View>
-                  <View style={styles.modalInfoItem}>
-                    <Text style={styles.modalInfoLabel}>Category</Text>
-                    <Text style={styles.modalInfoValue}>{selectedChallenge.category}</Text>
-                  </View>
+            )}
+
+            {/* Impact Section */}
+            {selectedChallenge.impactValue && (
+              <View style={styles.impactSection}>
+                <Text style={styles.sectionTitle}>🌍 Environmental Impact</Text>
+                <View style={styles.impactCard}>
+                  <Text style={styles.impactNumber}>{selectedChallenge.impactValue}</Text>
+                  <Text style={styles.impactUnit}>{selectedChallenge.impactUnit}</Text>
+                  <Text style={styles.impactLabel}>You'll help save</Text>
                 </View>
-
-                {selectedChallenge.requirements && (
-                  <View style={styles.requirementsSection}>
-                    <Text style={styles.modalSectionTitle}>Requirements</Text>
-                    {selectedChallenge.requirements.map((requirement, index) => (
-                      <View key={index} style={styles.requirementItem}>
-                        <Text style={styles.requirementBullet}>✓</Text>
-                        <Text style={styles.requirementText}>{requirement}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                <TouchableOpacity 
-                  style={styles.joinButton}
-                  onPress={() => joinChallenge(selectedChallenge)}
-                >
-                  <Text style={styles.joinButtonText}>Join This Challenge</Text>
-                </TouchableOpacity>
               </View>
             )}
+
+            {/* Action Button */}
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => joinChallenge(selectedChallenge)}
+            >
+              <Text style={styles.actionButtonText}>
+                {selectedChallenge.progress !== undefined ? 'Continue Walmart Challenge' : 'Join Walmart Challenge'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.disclaimerBox}>
+              <Text style={styles.disclaimerText}>
+                🛒 This challenge will automatically track your Walmart purchases and activities. 
+                Progress updates in real-time through your Walmart account.
+              </Text>
+            </View>
           </ScrollView>
         )}
       </SafeAreaView>
@@ -350,77 +588,85 @@ export default function ChallengesTab() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>🎯 Environmental Challenges</Text>
-        <Text style={styles.headerSubtitle}>Take on challenges to earn points and help the planet!</Text>
+        <Text style={styles.headerTitle}>GreenMind Sustainability Challenges</Text>
+        <Text style={styles.headerSubtitle}>AI-powered • Automatically tracked • Real impact</Text>
       </View>
 
-      {/* Tab Navigation */}
-      <View style={styles.tabNavigation}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'active' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('active')}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'active' && styles.tabButtonTextActive]}>
-            Active ({activeChallenges.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'available' && styles.tabButtonActive]}
-          onPress={() => setActiveTab('available')}
-        >
-          <Text style={[styles.tabButtonText, activeTab === 'available' && styles.tabButtonTextActive]}>
-            Available ({availableChallenges.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <JoinNotification />
 
-      {/* Content */}
-      <ScrollView style={styles.content}>
-        {activeTab === 'active' ? (
-          <View>
-            {activeChallenges.length > 0 ? (
-              <View style={styles.challengesContainer}>
-                {activeChallenges.map(challenge => (
-                  <ChallengeCard key={challenge.id} challenge={challenge} isActive={true} />
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyChallenges}>
-                <Text style={styles.emptyChallengesIcon}>🎯</Text>
-                <Text style={styles.emptyChallengesTitle}>No Active Challenges</Text>
-                <Text style={styles.emptyChallengesText}>
-                  Browse available challenges to start your eco-journey!
-                </Text>
-                <TouchableOpacity 
-                  style={styles.browseButton}
-                  onPress={() => setActiveTab('available')}
-                >
-                  <Text style={styles.browseButtonText}>Browse Challenges</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        ) : (
-          <View>
-            <View style={styles.availableHeader}>
-              <Text style={styles.availableHeaderTitle}>Available Challenges</Text>
-              <Text style={styles.availableHeaderSubtitle}>
-                Choose challenges that match your lifestyle and goals
+      <ScrollView 
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+      >
+        <WalmartStatsCard />
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>GreenMind Challenges</Text>
+            <TouchableOpacity onPress={generateWalmartSmartChallenges} disabled={isGeneratingAI}>
+              <Text style={styles.regenerateButton}>
+                {isGeneratingAI ? 'Generating...' : '⚡ New Challenges'}
               </Text>
-            </View>
-            
-            <View style={styles.challengesContainer}>
-              {availableChallenges.map(challenge => (
-                <ChallengeCard key={challenge.id} challenge={challenge} isActive={false} />
-              ))}
-            </View>
+            </TouchableOpacity>
           </View>
-        )}
+          <Text style={styles.sectionSubtitle}>Personalized challenges based on your Walmart shopping data</Text>
+          
+          {isGeneratingAI ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>GreenMind analyzing your Walmart shopping patterns...</Text>
+            </View>
+          ) : (
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              style={styles.horizontalScroll}
+              contentContainerStyle={styles.horizontalScrollContent}
+            >
+              {aiChallenges.map(challenge => (
+                <WalmartSmartCard key={challenge.id} challenge={challenge} />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'active' && styles.tabActive]}
+            onPress={() => setActiveTab('active')}
+          >
+            <Text style={[styles.tabText, activeTab === 'active' && styles.tabTextActive]}>
+              My Challenges ({activeWalmartChallenges.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'available' && styles.tabActive]}
+            onPress={() => setActiveTab('available')}
+          >
+            <Text style={[styles.tabText, activeTab === 'available' && styles.tabTextActive]}>
+              Available ({availableAiChallenges.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.challengesList}>
+          {activeTab === 'active' ? (
+            activeWalmartChallenges.map(challenge => (
+              <WalmartChallengeCard key={challenge.id} challenge={challenge} isAvailable={false} />
+            ))
+          ) : (
+            availableAiChallenges.map(challenge => (
+              <WalmartChallengeCard key={challenge.id} challenge={challenge} isAvailable={true} />
+            ))
+          )}
+        </View>
+
+        <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      <ChallengeModal />
+      <WalmartChallengeModal />
     </SafeAreaView>
   );
 }
@@ -428,53 +674,340 @@ export default function ChallengesTab() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#059669',
+    backgroundColor: '#0071CE', // Walmart blue
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 20,
     paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
-  tabNavigation: {
+  notificationContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  notificationCard: {
     backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0071CE',
+  },
+  notificationHeader: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 16,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    marginBottom: 8,
   },
-  tabButtonActive: {
-    borderBottomColor: '#059669',
+  notificationIcon: {
+    fontSize: 24,
+    marginRight: 12,
   },
-  tabButtonText: {
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
     fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  notificationReward: {
+    alignItems: 'center',
+    backgroundColor: '#EBF8FF',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  notificationRewardText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0071CE',
+  },
+  notificationRewardLabel: {
+    fontSize: 10,
+    color: '#0071CE',
+  },
+  notificationFooter: {
+    marginTop: 8,
+  },
+  notificationFooterText: {
+    fontSize: 12,
+    color: '#0071CE',
+    fontStyle: 'italic',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  liveStatsCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  liveStatsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  walmartBadge: {
+    backgroundColor: '#0071CE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  walmartBadgeText: {
+    color: 'white',
+    fontSize: 7,
+    fontWeight: '600',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#0071CE',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  liveDot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    marginRight: 6,
+  },
+  liveText: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '500',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  regenerateButton: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#F3F0FF',
+    borderRadius: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#8B5CF6',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  horizontalScroll: {
+    marginHorizontal: -16,
+  },
+  horizontalScrollContent: {
+    paddingHorizontal: 16,
+    paddingRight: 32,
+  },
+  smartCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginRight: 12,
+    width: screenWidth * 0.75,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  smartCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  smartCardIcon: {
+    fontSize: 24,
+  },
+  smartBadge: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  smartBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  smartCardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  smartCardDesc: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  trackingInfo: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+  },
+  trackingLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0369A1',
+    marginBottom: 2,
+  },
+  trackingMethod: {
+    fontSize: 11,
+    color: '#0369A1',
+    lineHeight: 16,
+  },
+  smartCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  smartReward: {
+    fontSize: 12,
+    color: '#7C3AED',
+    fontWeight: '600',
+  },
+  walmartBenefit: {
+    fontSize: 10,
+    color: '#0071CE',
+    fontWeight: '500',
+  },
+  teamProgress: {
+    marginTop: 12,
+  },
+  teamProgressText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  teamProgressBar: {
+    height: 4,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 2,
+  },
+  teamProgressFill: {
+    height: '100%',
+    backgroundColor: '#0071CE',
+    borderRadius: 2,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  tabActive: {
+    backgroundColor: '#0071CE',
+  },
+  tabText: {
+    fontSize: 14,
     fontWeight: '500',
     color: '#6B7280',
   },
-  tabButtonTextActive: {
-    color: '#059669',
+  tabTextActive: {
+    color: 'white',
   },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  challengesContainer: {
+  challengesList: {
     gap: 16,
   },
   challengeCard: {
@@ -487,48 +1020,97 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  challengeHeader: {
+  trendingCard: {
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+  },
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  challengeHeaderLeft: {
+  cardHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  challengeIcon: {
-    fontSize: 32,
+  cardIcon: {
+    fontSize: 28,
     marginRight: 12,
   },
-  challengeHeaderText: {
+  cardInfo: {
     flex: 1,
   },
-  challengeTitle: {
+  cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 4,
   },
-  challengeCategory: {
+  cardCategory: {
     fontSize: 14,
     color: '#6B7280',
   },
+  cardBadges: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   difficultyBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   difficultyText: {
     fontSize: 12,
     fontWeight: '600',
   },
-  challengeDescription: {
+  walmartTrackingBadge: {
+    backgroundColor: '#EBF8FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  walmartTrackingText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#0071CE',
+  },
+  streakBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  streakText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#92400E',
+  },
+  cardDescription: {
     fontSize: 16,
     color: '#4B5563',
     lineHeight: 24,
+    marginBottom: 12,
+  },
+  walmartBenefitBox: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 12,
     marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#0071CE',
+  },
+  walmartBenefitLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0369A1',
+    marginBottom: 4,
+  },
+  walmartBenefitText: {
+    fontSize: 14,
+    color: '#0369A1',
+    lineHeight: 20,
   },
   progressSection: {
     marginTop: 8,
@@ -547,28 +1129,45 @@ const styles = StyleSheet.create({
   progressPercentage: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#059669',
+    color: '#0071CE',
   },
-  progressTrack: {
+  progressBar: {
     height: 8,
     backgroundColor: '#E5E7EB',
     borderRadius: 4,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#059669',
+    backgroundColor: '#0071CE',
     borderRadius: 4,
   },
-  challengeFooter: {
+  cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
+  },
+  impactInfo: {
+    flex: 1,
+  },
+  impactText: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  participantsText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  rewardInfo: {
+    alignItems: 'flex-end',
   },
   timeLeft: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#F59E0B',
     fontWeight: '500',
+    marginBottom: 4,
   },
   rewardText: {
     fontSize: 14,
@@ -578,72 +1177,28 @@ const styles = StyleSheet.create({
   availableChallengeFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginTop: 16,
   },
   challengeDetails: {
     flex: 1,
   },
   challengeTarget: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 4,
   },
   challengeDuration: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
   },
-  emptyChallenges: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 32,
-  },
-  emptyChallengesIcon: {
-    fontSize: 64,
-    marginBottom: 24,
-  },
-  emptyChallengesTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  emptyChallengesText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  browseButton: {
-    backgroundColor: '#059669',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  browseButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  availableHeader: {
-    marginBottom: 24,
-  },
-  availableHeaderTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  availableHeaderSubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+  bottomSpacing: {
+    height: 32,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8FAFC',
   },
   modalHeader: {
     backgroundColor: 'white',
@@ -664,6 +1219,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1F2937',
   },
+  shareButton: {
+    fontSize: 14,
+    color: '#0071CE',
+    fontWeight: '500',
+  },
   modalContent: {
     flex: 1,
     padding: 20,
@@ -683,6 +1243,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 12,
   },
+  modalBadgesRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   modalDifficultyBadge: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -693,154 +1257,101 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  modalDescription: {
-    fontSize: 18,
-    color: '#4B5563',
-    lineHeight: 28,
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  modalProgressSection: {
-    marginBottom: 24,
-  },
-  modalSectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  modalProgressCard: {
-    backgroundColor: 'white',
+  modalWalmartBadge: {
+    backgroundColor: '#0071CE',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  modalProgressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  modalProgressText: {
-    fontSize: 18,
+  modalWalmartBadgeText: {
+    color: 'white',
+    fontSize: 12,
     fontWeight: '600',
-    color: '#1F2937',
   },
-  modalProgressPercentage: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#059669',
-  },
-  modalProgressTrack: {
-    height: 12,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 6,
-    marginBottom: 12,
-  },
-  modalProgressFill: {
-    height: '100%',
-    backgroundColor: '#059669',
-    borderRadius: 6,
-  },
-  modalTimeLeft: {
-    fontSize: 16,
-    color: '#F59E0B',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  tipsContainer: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  tipBullet: {
-    fontSize: 16,
-    marginRight: 12,
-    marginTop: 2,
-  },
-  tipText: {
-    flex: 1,
+  modalDescription: {
     fontSize: 16,
     color: '#4B5563',
     lineHeight: 24,
-  },
-  modalDetailsSection: {
+    textAlign: 'center',
     marginBottom: 24,
   },
-  modalInfoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
+  trackingSection: {
     marginBottom: 24,
   },
-  modalInfoItem: {
-    backgroundColor: 'white',
+  trackingCard: {
+    backgroundColor: '#F0F9FF',
     borderRadius: 12,
     padding: 16,
-    width: '47%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#0071CE',
   },
-  modalInfoLabel: {
+  trackingExplanation: {
     fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
+    color: '#0369A1',
+    marginBottom: 8,
+    lineHeight: 20,
   },
-  modalInfoValue: {
-    fontSize: 16,
+  trackingBenefit: {
+    fontSize: 14,
+    color: '#0369A1',
+    lineHeight: 20,
+  },
+  trackingBenefitLabel: {
     fontWeight: '600',
-    color: '#1F2937',
-    textAlign: 'center',
   },
-  requirementsSection: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
+  aiTipsSection: {
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  requirementItem: {
+  aiTipsContainer: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  aiTipItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  requirementBullet: {
+  aiTipBullet: {
     fontSize: 16,
-    color: '#059669',
     marginRight: 12,
     marginTop: 2,
   },
-  requirementText: {
+  aiTipText: {
     flex: 1,
-    fontSize: 16,
-    color: '#4B5563',
-    lineHeight: 24,
+    fontSize: 14,
+    color: '#1E40AF',
+    lineHeight: 20,
   },
-  joinButton: {
-    backgroundColor: '#059669',
+  impactSection: {
+    marginBottom: 24,
+  },
+  impactCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  impactNumber: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 4,
+  },
+  impactUnit: {
+    fontSize: 16,
+    color: '#059669',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  impactLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  actionButton: {
+    backgroundColor: '#0071CE',
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -849,10 +1360,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 16,
   },
-  joinButtonText: {
+  actionButtonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+  },
+  disclaimerBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  disclaimerText: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });
