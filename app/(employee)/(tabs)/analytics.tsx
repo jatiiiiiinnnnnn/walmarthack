@@ -1,13 +1,13 @@
 // analytics.tsx - Updated to use shared context for real-time data
 import React, { useState } from 'react';
 import {
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useAppData } from '../../contexts/AppDataContext';
 
@@ -489,6 +489,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#047857',
     paddingHorizontal: 20,
     paddingVertical: 24,
+    paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,

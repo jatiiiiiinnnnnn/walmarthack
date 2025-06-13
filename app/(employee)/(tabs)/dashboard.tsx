@@ -64,7 +64,8 @@ export default function EmployeeDashboard() {
       description: dealDescription,
       discount: parseInt(dealDiscount),
       quantity: dealQuantity,
-      priority: "medium"
+      priority: "medium",
+      aisle: ""
     });
 
     // Trigger visual feedback
@@ -189,21 +190,11 @@ export default function EmployeeDashboard() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View>
-              <Text style={styles.welcomeText}>🏪 Employee Portal</Text>
+              <Text style={styles.welcomeText}>Employee Portal</Text>
               <Text style={styles.userName}>Sarah Johnson</Text>
               <Text style={styles.userRole}>Environmental Coordinator</Text>
             </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.notificationBadge}>
-                <Text style={styles.notificationCount}>4</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.analyticsButton}
-                onPress={() => navigateToTab('analytics')}
-              >
-                <Text style={styles.analyticsButtonText}>📊</Text>
-              </TouchableOpacity>
-            </View>
+            
           </View>
         </View>
 
@@ -488,7 +479,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#047857',
-    paddingTop: 20,
+    paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },

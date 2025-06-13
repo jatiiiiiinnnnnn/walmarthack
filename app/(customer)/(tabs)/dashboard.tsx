@@ -1,4 +1,4 @@
-// app/(customer)/(tabs)/dashboard.tsx - Enhanced with More Organic Products & Cart Integration
+// app/(customer)/(tabs)/dashboard.tsx - COMPLETE Enhanced Dashboard with Rescue Deals
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -32,8 +32,8 @@ interface Product {
   isLocal?: boolean;
   ecoPoints: number;
   aisle: string;
-  nutritionScore?: string; // A, B, C, D, E for food products
-  origin?: string; // For local products
+  nutritionScore?: string;
+  origin?: string;
   certifications?: string[];
   ecoAlternative?: {
     id: string;
@@ -47,6 +47,24 @@ interface Product {
   };
 }
 
+interface RescueDeal {
+  id: string;
+  name: string;
+  brand: string;
+  originalPrice: number;
+  rescuePrice: number;
+  discountPercentage: number;
+  expiryDate: Date;
+  expiryHours: number;
+  quantity: number;
+  category: string;
+  reason: 'Near Expiry' | 'Overstock' | 'Seasonal' | 'Damaged Packaging';
+  ecoPoints: number;
+  donationEcoPoints: number;
+  aisle: string;
+  image?: string;
+}
+
 interface Filter {
   id: string;
   name: string;
@@ -55,12 +73,15 @@ interface Filter {
   count?: number;
 }
 
-export default function EnhancedShopTab() {
+export default function EnhancedDashboard() {
   const { 
     rescueDeals, 
     updateRescueDealStatus, 
     dashboardData,
-    todaysStats 
+    todaysStats,
+    addToCart,
+    userEcoPoints,
+    setUserEcoPoints
   } = useAppData();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,12 +97,101 @@ export default function EnhancedShopTab() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'relevance' | 'price-low' | 'price-high' | 'eco-score'>('relevance');
-  const [cartItems, setCartItems] = useState<{[key: string]: number}>({});
-  const [userEcoPoints, setUserEcoPoints] = useState(847);
+  const [showRescueModal, setShowRescueModal] = useState(false);
+  const [selectedRescueDeal, setSelectedRescueDeal] = useState<RescueDeal | null>(null);
 
-  // Massively expanded product catalog with focus on organic section
+  // Mock rescue deals data - sorted by expiry date (nearest first)
+  const mockRescueDeals: RescueDeal[] = [
+    {
+      id: 'rescue_1',
+      name: 'Organic Strawberries (1 lb)',
+      brand: 'Fresh Farm',
+      originalPrice: 5.98,
+      rescuePrice: 2.99,
+      discountPercentage: 50,
+      expiryDate: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4 hours from now
+      expiryHours: 4,
+      quantity: 12,
+      category: 'Fresh Produce',
+      reason: 'Near Expiry',
+      ecoPoints: 15,
+      donationEcoPoints: 25,
+      aisle: 'Produce - Aisle 1A'
+    },
+    {
+      id: 'rescue_2',
+      name: 'Artisan Bread Loaves',
+      brand: 'Daily Bakery',
+      originalPrice: 4.49,
+      rescuePrice: 1.99,
+      discountPercentage: 56,
+      expiryDate: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours from now
+      expiryHours: 8,
+      quantity: 8,
+      category: 'Bakery',
+      reason: 'Near Expiry',
+      ecoPoints: 12,
+      donationEcoPoints: 20,
+      aisle: 'Bakery - Aisle 3B'
+    },
+    {
+      id: 'rescue_3',
+      name: 'Holiday Decorations Set',
+      brand: 'FestiveHome',
+      originalPrice: 29.99,
+      rescuePrice: 9.99,
+      discountPercentage: 67,
+      expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+      expiryHours: 24,
+      quantity: 15,
+      category: 'Seasonal',
+      reason: 'Seasonal',
+      ecoPoints: 20,
+      donationEcoPoints: 35,
+      aisle: 'Seasonal - Aisle 25A'
+    },
+    {
+      id: 'rescue_4',
+      name: 'Organic Yogurt Variety Pack',
+      brand: 'Green Valley',
+      originalPrice: 12.99,
+      rescuePrice: 6.99,
+      discountPercentage: 46,
+      expiryDate: new Date(Date.now() + 36 * 60 * 60 * 1000), // 36 hours from now
+      expiryHours: 36,
+      quantity: 20,
+      category: 'Dairy',
+      reason: 'Near Expiry',
+      ecoPoints: 18,
+      donationEcoPoints: 30,
+      aisle: 'Dairy - Aisle 9A'
+    },
+    {
+      id: 'rescue_5',
+      name: 'Electronics Accessories Bundle',
+      brand: 'TechPlus',
+      originalPrice: 49.99,
+      rescuePrice: 19.99,
+      discountPercentage: 60,
+      expiryDate: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours from now
+      expiryHours: 48,
+      quantity: 10,
+      category: 'Electronics',
+      reason: 'Overstock',
+      ecoPoints: 25,
+      donationEcoPoints: 40,
+      aisle: 'Electronics - Aisle 2C'
+    }
+  ];
+
+  // Sort rescue deals by expiry date (nearest first)
+  const sortedRescueDeals = mockRescueDeals.sort((a, b) => 
+    a.expiryDate.getTime() - b.expiryDate.getTime()
+  );
+
+  // Expanded product catalog
   const allProducts: Product[] = [
-    // SustainShop deals (recycled/refurbished/eco-friendly with super savings)
+    // SustainShop deals
     {
       id: 'sustain_1',
       name: 'Refurbished iPhone 13',
@@ -144,8 +254,7 @@ export default function EnhancedShopTab() {
       aisle: 'Kitchen - Aisle 17A',
       certifications: ['100% Bamboo', 'Dishwasher Safe']
     },
-
-    // EXPANDED ORGANIC SECTION - Fresh Produce
+    // ORGANIC SECTION
     {
       id: 'organic_1',
       name: 'Organic Bananas (2 lbs)',
@@ -231,24 +340,6 @@ export default function EnhancedShopTab() {
       certifications: ['USDA Organic'],
       origin: 'Canada'
     },
-    {
-      id: 'organic_6',
-      name: 'Organic Strawberries (1 lb)',
-      brand: 'Driscoll\'s Organic',
-      price: 5.98,
-      co2Impact: 1.0,
-      sustainabilityScore: 8.7,
-      category: 'Fresh Produce',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 18,
-      aisle: 'Produce - Aisle 1A',
-      nutritionScore: 'A',
-      certifications: ['USDA Organic', 'California Certified Organic'],
-      origin: 'California, USA'
-    },
-
     // ORGANIC DAIRY & EGGS
     {
       id: 'organic_7',
@@ -284,164 +375,6 @@ export default function EnhancedShopTab() {
       certifications: ['USDA Organic', 'Pasture-Raised', 'Certified Humane'],
       origin: 'Family Farms, USA'
     },
-    {
-      id: 'organic_9',
-      name: 'Organic Greek Yogurt (32 oz)',
-      brand: 'Stonyfield Organic',
-      price: 5.98,
-      co2Impact: 1.6,
-      sustainabilityScore: 8.4,
-      category: 'Dairy',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 18,
-      aisle: 'Dairy - Aisle 9A',
-      nutritionScore: 'A',
-      certifications: ['USDA Organic', 'Live Active Cultures'],
-      origin: 'New Hampshire, USA'
-    },
-
-    // ORGANIC PANTRY STAPLES
-    {
-      id: 'organic_10',
-      name: 'Organic Quinoa (2 lbs)',
-      brand: 'Ancient Harvest',
-      price: 8.98,
-      co2Impact: 1.4,
-      sustainabilityScore: 9.1,
-      category: 'Pantry',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 22,
-      aisle: 'Pantry - Aisle 15B',
-      nutritionScore: 'A',
-      certifications: ['USDA Organic', 'Gluten-Free', 'Non-GMO'],
-      origin: 'Bolivia'
-    },
-    {
-      id: 'organic_11',
-      name: 'Organic Brown Rice (2 lbs)',
-      brand: 'Lundberg Family Farms',
-      price: 4.98,
-      co2Impact: 1.2,
-      sustainabilityScore: 8.8,
-      category: 'Pantry',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 15,
-      aisle: 'Pantry - Aisle 15A',
-      nutritionScore: 'B',
-      certifications: ['USDA Organic', 'Eco-Farmed'],
-      origin: 'California, USA'
-    },
-    {
-      id: 'organic_12',
-      name: 'Organic Whole Wheat Pasta (1 lb)',
-      brand: 'Bionaturae',
-      price: 3.48,
-      co2Impact: 0.8,
-      sustainabilityScore: 8.6,
-      category: 'Pantry',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 12,
-      aisle: 'Pantry - Aisle 14A',
-      nutritionScore: 'B',
-      certifications: ['USDA Organic', 'Bronze Die Cut'],
-      origin: 'Italy'
-    },
-    {
-      id: 'organic_13',
-      name: 'Organic Black Beans (15 oz can)',
-      brand: 'Amy\'s Organic',
-      price: 2.48,
-      co2Impact: 0.6,
-      sustainabilityScore: 8.9,
-      category: 'Pantry',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 10,
-      aisle: 'Pantry - Aisle 16A',
-      nutritionScore: 'A',
-      certifications: ['USDA Organic', 'BPA-Free Can'],
-      origin: 'USA'
-    },
-    {
-      id: 'organic_14',
-      name: 'Organic Coconut Oil (14 oz)',
-      brand: 'Spectrum Organic',
-      price: 7.98,
-      co2Impact: 1.1,
-      sustainabilityScore: 8.3,
-      category: 'Pantry',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 20,
-      aisle: 'Pantry - Aisle 16B',
-      nutritionScore: 'C',
-      certifications: ['USDA Organic', 'Unrefined', 'Fair Trade'],
-      origin: 'Philippines'
-    },
-
-    // ORGANIC SNACKS & BEVERAGES
-    {
-      id: 'organic_15',
-      name: 'Organic Apple Juice (64 oz)',
-      brand: 'Simply Organic',
-      price: 4.98,
-      co2Impact: 1.3,
-      sustainabilityScore: 8.2,
-      category: 'Beverages',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 15,
-      aisle: 'Beverages - Aisle 13A',
-      nutritionScore: 'C',
-      certifications: ['USDA Organic', 'Not From Concentrate'],
-      origin: 'Washington State, USA'
-    },
-    {
-      id: 'organic_16',
-      name: 'Organic Green Tea (20 bags)',
-      brand: 'Traditional Medicinals',
-      price: 5.48,
-      co2Impact: 0.4,
-      sustainabilityScore: 9.0,
-      category: 'Beverages',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 18,
-      aisle: 'Beverages - Aisle 13B',
-      nutritionScore: 'A',
-      certifications: ['USDA Organic', 'Fair Trade', 'Non-GMO'],
-      origin: 'China'
-    },
-    {
-      id: 'organic_17',
-      name: 'Organic Granola Bars (6 count)',
-      brand: 'Kashi Organic',
-      price: 4.98,
-      co2Impact: 1.0,
-      sustainabilityScore: 8.4,
-      category: 'Snacks',
-      inStock: true,
-      isEcoFriendly: true,
-      isOrganic: true,
-      ecoPoints: 15,
-      aisle: 'Snacks - Aisle 11A',
-      nutritionScore: 'B',
-      certifications: ['USDA Organic', 'Non-GMO Project'],
-      origin: 'USA'
-    },
-
     // LOCAL PRODUCTS
     {
       id: 'local_1',
@@ -477,7 +410,6 @@ export default function EnhancedShopTab() {
       certifications: ['Free Range', 'Local Farm'],
       origin: 'Gurgaon, India (15 miles away)'
     },
-
     // REGULAR PRODUCTS WITH ECO ALTERNATIVES
     {
       id: 'reg_1',
@@ -524,53 +456,6 @@ export default function EnhancedShopTab() {
         co2Impact: 1.2,
         ecoPoints: 25,
         features: ['Reusable', 'BPA-free', 'Insulated', 'Lifetime use']
-      }
-    },
-    {
-      id: 'reg_3',
-      name: 'Regular Ground Coffee (12 oz)',
-      brand: 'Folgers',
-      price: 4.98,
-      co2Impact: 4.2,
-      sustainabilityScore: 3.7,
-      category: 'Beverages',
-      inStock: true,
-      isEcoFriendly: false,
-      ecoPoints: 0,
-      aisle: 'Coffee & Tea - Aisle 13B',
-      nutritionScore: 'C',
-      ecoAlternative: {
-        id: 'reg_3_alt',
-        name: 'Fair Trade Organic Coffee',
-        brand: 'Equal Exchange',
-        price: 8.98,
-        priceIncrease: 4.00,
-        co2Impact: 2.1,
-        ecoPoints: 20,
-        features: ['Fair trade certified', 'USDA Organic', 'Carbon neutral shipping', 'Small farmer support']
-      }
-    },
-    {
-      id: 'reg_4',
-      name: 'Regular Toilet Paper (12 rolls)',
-      brand: 'Charmin',
-      price: 12.99,
-      co2Impact: 3.8,
-      sustainabilityScore: 3.5,
-      category: 'Household',
-      inStock: true,
-      isEcoFriendly: false,
-      ecoPoints: 0,
-      aisle: 'Household - Aisle 18A',
-      ecoAlternative: {
-        id: 'reg_4_alt',
-        name: 'Bamboo Toilet Paper',
-        brand: 'Cloud Paper',
-        price: 15.99,
-        priceIncrease: 3.00,
-        co2Impact: 1.2,
-        ecoPoints: 18,
-        features: ['100% Bamboo', 'Plastic-free packaging', 'Tree-free', 'Hypoallergenic']
       }
     }
   ];
@@ -695,15 +580,101 @@ export default function EnhancedShopTab() {
     setShowEcoModal(true);
   };
 
-  const addToCart = (product: Product, isEcoAlternative = false) => {
-    const productToAdd = isEcoAlternative && product.ecoAlternative ? 
-      { ...product, ...product.ecoAlternative } : product;
+  const getUrgencyColor = (hours: number) => {
+    if (hours <= 6) return '#EF4444'; // Red - Very urgent
+    if (hours <= 12) return '#F97316'; // Orange - Urgent
+    if (hours <= 24) return '#F59E0B'; // Yellow - Moderate
+    return '#10B981'; // Green - Less urgent
+  };
+
+  const formatTimeLeft = (expiryDate: Date) => {
+    const now = new Date();
+    const diff = expiryDate.getTime() - now.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     
-    const currentQuantity = cartItems[productToAdd.id] || 0;
-    setCartItems(prev => ({
-      ...prev,
-      [productToAdd.id]: currentQuantity + 1
-    }));
+    if (hours <= 0) {
+      return `${minutes}m left`;
+    } else if (hours < 24) {
+      return `${hours}h ${minutes}m left`;
+    } else {
+      const days = Math.floor(hours / 24);
+      return `${days}d ${hours % 24}h left`;
+    }
+  };
+
+  const handleRescueDealAction = (deal: RescueDeal, action: 'buy' | 'donate') => {
+    if (action === 'buy') {
+      // Add to cart with rescue price
+      addToCart({
+        id: deal.id,
+        name: deal.name,
+        brand: deal.brand,
+        price: deal.rescuePrice,
+        originalPrice: deal.originalPrice,
+        category: deal.category,
+        ecoPoints: deal.ecoPoints,
+        aisle: deal.aisle,
+        isRescueDeal: true,
+        co2Impact: 1.5, // Estimated
+        sustainabilityScore: 8.0, // High for rescue deals
+        isEcoFriendly: true
+      });
+      
+      setUserEcoPoints(prev => prev + deal.ecoPoints);
+      
+      Alert.alert(
+        '🛒 Rescue Deal Bought!',
+        `${deal.name} added to cart for $${deal.rescuePrice.toFixed(2)}\n\n💰 You earned ${deal.ecoPoints} EcoPoints!\n🌱 You helped prevent food waste!`,
+        [
+          { text: 'Continue Shopping', style: 'default' },
+          { text: 'View Cart', onPress: () => {
+            // Navigate to cart tab - in real app would use router
+            Alert.alert('Navigation', 'Would navigate to cart tab');
+          }}
+        ]
+      );
+    } else {
+      // Donate to charity
+      setUserEcoPoints(prev => prev + deal.donationEcoPoints);
+      
+      Alert.alert(
+        '❤️ Donated to Charity!',
+        `${deal.name} has been donated to local food banks.\n\n💰 You earned ${deal.donationEcoPoints} EcoPoints!\n🌟 Thank you for your generosity!\n🌱 You helped prevent waste AND fed families in need.`,
+        [{ text: 'Amazing!', style: 'default' }]
+      );
+    }
+    setShowRescueModal(false);
+  };
+
+  const addProductToCart = (product: Product, isEcoAlternative = false) => {
+    const productToAdd = isEcoAlternative && product.ecoAlternative ? 
+      { 
+        ...product, 
+        ...product.ecoAlternative,
+        id: product.ecoAlternative.id,
+        name: product.ecoAlternative.name,
+        brand: product.ecoAlternative.brand,
+        price: product.ecoAlternative.price,
+        ecoPoints: product.ecoAlternative.ecoPoints,
+        co2Impact: product.ecoAlternative.co2Impact,
+        isEcoAlternative: true
+      } : product;
+    
+    addToCart({
+      id: productToAdd.id,
+      name: productToAdd.name,
+      brand: productToAdd.brand,
+      price: productToAdd.price,
+      originalPrice: productToAdd.originalPrice,
+      category: productToAdd.category,
+      ecoPoints: productToAdd.ecoPoints,
+      aisle: productToAdd.aisle,
+      co2Impact: productToAdd.co2Impact,
+      sustainabilityScore: productToAdd.sustainabilityScore,
+      isEcoFriendly: productToAdd.isEcoFriendly,
+      isEcoAlternative: isEcoAlternative
+    });
 
     // Award EcoPoints
     if (productToAdd.ecoPoints > 0) {
@@ -724,9 +695,188 @@ export default function EnhancedShopTab() {
     setShowEcoModal(false);
   };
 
-  const getCartItemCount = () => {
-    return Object.values(cartItems).reduce((sum, quantity) => sum + quantity, 0);
-  };
+  const RescueDealsSection = () => (
+    <View style={styles.rescueSection}>
+      <View style={styles.rescueHeader}>
+        <Text style={styles.rescueTitle}>🚨 Rescue Deals - Save Food & Money!</Text>
+        <Text style={styles.rescueSubtitle}>
+          Help prevent waste • Earn EcoPoints • Save up to 70%
+        </Text>
+      </View>
+      
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rescueScroll}>
+        {sortedRescueDeals.map(deal => (
+          <TouchableOpacity
+            key={deal.id}
+            style={[styles.rescueCard, { borderLeftColor: getUrgencyColor(deal.expiryHours) }]}
+            onPress={() => {
+              setSelectedRescueDeal(deal);
+              setShowRescueModal(true);
+            }}
+          >
+            <View style={styles.rescueCardHeader}>
+              <View style={[styles.urgencyBadge, { backgroundColor: getUrgencyColor(deal.expiryHours) }]}>
+                <Text style={styles.urgencyText}>{formatTimeLeft(deal.expiryDate)}</Text>
+              </View>
+              <Text style={styles.rescueDiscount}>{deal.discountPercentage}% OFF</Text>
+            </View>
+            
+            <Text style={styles.rescueItemName}>{deal.name}</Text>
+            <Text style={styles.rescueItemBrand}>{deal.brand}</Text>
+            
+            <View style={styles.rescuePricing}>
+              <Text style={styles.rescueOriginalPrice}>${deal.originalPrice}</Text>
+              <Text style={styles.rescuePrice}>${deal.rescuePrice}</Text>
+            </View>
+            
+            <View style={styles.rescueInfo}>
+              <Text style={styles.rescueReason}>📦 {deal.reason}</Text>
+              <Text style={styles.rescueQuantity}>{deal.quantity} left</Text>
+            </View>
+            
+            <View style={styles.rescueActions}>
+              <Text style={styles.rescueEcoPoints}>
+                💰 Buy: +{deal.ecoPoints} pts | 🎁 Donate: +{deal.donationEcoPoints} pts
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const RescueDealModal = () => (
+    <Modal visible={showRescueModal} animationType="slide" presentationStyle="formSheet">
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={() => setShowRescueModal(false)}>
+            <Text style={styles.modalBackButton}>✕ Close</Text>
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>Rescue Deal</Text>
+          <Text style={styles.modalPoints}>💰 {userEcoPoints} points</Text>
+        </View>
+
+        {selectedRescueDeal && (
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.rescueDealDetailCard}>
+              <View style={styles.rescueDetailHeader}>
+                <View style={[styles.urgencyBadge, { backgroundColor: getUrgencyColor(selectedRescueDeal.expiryHours) }]}>
+                  <Text style={styles.urgencyText}>{formatTimeLeft(selectedRescueDeal.expiryDate)}</Text>
+                </View>
+                <Text style={styles.rescueDetailDiscount}>{selectedRescueDeal.discountPercentage}% OFF</Text>
+              </View>
+              
+              <Text style={styles.rescueDetailName}>{selectedRescueDeal.name}</Text>
+              <Text style={styles.rescueDetailBrand}>{selectedRescueDeal.brand}</Text>
+              <Text style={styles.rescueDetailAisle}>📍 {selectedRescueDeal.aisle}</Text>
+              
+              <View style={styles.rescueDetailPricing}>
+                <Text style={styles.rescueDetailOriginalPrice}>
+                  Original: ${selectedRescueDeal.originalPrice}
+                </Text>
+                <Text style={styles.rescueDetailPrice}>
+                  Rescue Price: ${selectedRescueDeal.rescuePrice}
+                </Text>
+                <Text style={styles.rescueDetailSavings}>
+                  You Save: ${(selectedRescueDeal.originalPrice - selectedRescueDeal.rescuePrice).toFixed(2)}
+                </Text>
+              </View>
+              
+              <View style={styles.rescueDetailInfo}>
+                <View style={styles.rescueDetailInfoItem}>
+                  <Text style={styles.rescueDetailInfoLabel}>Reason:</Text>
+                  <Text style={styles.rescueDetailInfoValue}>{selectedRescueDeal.reason}</Text>
+                </View>
+                <View style={styles.rescueDetailInfoItem}>
+                  <Text style={styles.rescueDetailInfoLabel}>Quantity:</Text>
+                  <Text style={styles.rescueDetailInfoValue}>{selectedRescueDeal.quantity} items left</Text>
+                </View>
+                <View style={styles.rescueDetailInfoItem}>
+                  <Text style={styles.rescueDetailInfoLabel}>Category:</Text>
+                  <Text style={styles.rescueDetailInfoValue}>{selectedRescueDeal.category}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Buy vs Donate Options */}
+            <View style={styles.actionOptionsCard}>
+              <Text style={styles.actionOptionsTitle}>Choose Your Action</Text>
+              
+              <View style={styles.actionOption}>
+                <View style={styles.actionOptionHeader}>
+                  <Text style={styles.actionOptionIcon}>🛒</Text>
+                  <Text style={styles.actionOptionTitle}>Buy for Yourself</Text>
+                </View>
+                <Text style={styles.actionOptionDescription}>
+                  Purchase at rescue price and save money while preventing waste
+                </Text>
+                <View style={styles.actionOptionReward}>
+                  <Text style={styles.actionOptionRewardText}>
+                    💰 Earn {selectedRescueDeal.ecoPoints} EcoPoints
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.buyButton}
+                  onPress={() => handleRescueDealAction(selectedRescueDeal, 'buy')}
+                >
+                  <Text style={styles.buyButtonText}>
+                    🛒 Buy for ${selectedRescueDeal.rescuePrice.toFixed(2)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.actionOptionDivider} />
+              
+              <View style={styles.actionOption}>
+                <View style={styles.actionOptionHeader}>
+                  <Text style={styles.actionOptionIcon}>❤️</Text>
+                  <Text style={styles.actionOptionTitle}>Donate to Charity</Text>
+                </View>
+                <Text style={styles.actionOptionDescription}>
+                  Donate this item to local food banks and help families in need
+                </Text>
+                <View style={styles.actionOptionReward}>
+                  <Text style={styles.actionOptionRewardText}>
+                    💰 Earn {selectedRescueDeal.donationEcoPoints} EcoPoints (BONUS!)
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.donateButton}
+                  onPress={() => handleRescueDealAction(selectedRescueDeal, 'donate')}
+                >
+                  <Text style={styles.donateButtonText}>
+                    ❤️ Donate to Charity (+{selectedRescueDeal.donationEcoPoints} pts)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Impact Information */}
+            <View style={styles.impactCard}>
+              <Text style={styles.impactTitle}>🌍 Your Impact</Text>
+              <Text style={styles.impactDescription}>
+                By choosing this rescue deal, you're helping prevent food waste and supporting sustainability.
+              </Text>
+              <View style={styles.impactStats}>
+                <View style={styles.impactStat}>
+                  <Text style={styles.impactStatValue}>1</Text>
+                  <Text style={styles.impactStatLabel}>Item Saved</Text>
+                </View>
+                <View style={styles.impactStat}>
+                  <Text style={styles.impactStatValue}>-2.1kg</Text>
+                  <Text style={styles.impactStatLabel}>CO₂ Prevented</Text>
+                </View>
+                <View style={styles.impactStat}>
+                  <Text style={styles.impactStatValue}>${(selectedRescueDeal.originalPrice - selectedRescueDeal.rescuePrice).toFixed(2)}</Text>
+                  <Text style={styles.impactStatLabel}>Value Saved</Text>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </Modal>
+  );
 
   const ProductCard = ({ product }: { product: Product }) => (
     <View style={viewMode === 'grid' ? styles.productCardGrid : styles.productCardList}>
@@ -819,11 +969,9 @@ export default function EnhancedShopTab() {
       <View style={styles.productActions}>
         <TouchableOpacity 
           style={styles.addToCartButton}
-          onPress={() => addToCart(product)}
+          onPress={() => addProductToCart(product)}
         >
-          <Text style={styles.addToCartText}>
-            Add to Cart{cartItems[product.id] ? ` (${cartItems[product.id]})` : ''}
-          </Text>
+          <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
         
         {product.ecoAlternative && (
@@ -929,14 +1077,14 @@ export default function EnhancedShopTab() {
             <View style={styles.modalActions}>
               <TouchableOpacity 
                 style={styles.keepOriginalButton}
-                onPress={() => addToCart(selectedProduct)}
+                onPress={() => addProductToCart(selectedProduct)}
               >
                 <Text style={styles.keepOriginalText}>Keep Original Choice</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.chooseEcoButton}
-                onPress={() => addToCart(selectedProduct, true)}
+                onPress={() => addProductToCart(selectedProduct, true)}
               >
                 <Text style={styles.chooseEcoText}>
                   🌱 Choose Eco Alternative {selectedProduct.ecoAlternative.priceIncrease >= 0 
@@ -952,10 +1100,6 @@ export default function EnhancedShopTab() {
     </Modal>
   );
 
-  const availableRescueDeals = rescueDeals.filter(deal => 
-    deal && deal.status === 'pending'
-  );
-
   const filteredProducts = getFilteredProducts();
 
   return (
@@ -966,25 +1110,10 @@ export default function EnhancedShopTab() {
         <Text style={styles.locationText}>📍 Supercenter - Delhi</Text>
         <Text style={styles.tagline}>Save Money. Live Better. Go Green.</Text>
         
-        <View style={styles.headerStats}>
-          <View style={styles.headerStat}>
-            <Text style={styles.headerStatValue}>💰 {userEcoPoints}</Text>
-            <Text style={styles.headerStatLabel}>EcoPoints</Text>
-          </View>
-          <View style={styles.headerStat}>
-            <Text style={styles.headerStatValue}>🛒 {getCartItemCount()}</Text>
-            <Text style={styles.headerStatLabel}>Cart Items</Text>
-          </View>
-        </View>
         
-        {availableRescueDeals.length > 0 && (
-          <View style={styles.liveCounter}>
-            <Text style={styles.liveCounterText}>
-              🔥 {availableRescueDeals.length} rescue deals available!
-            </Text>
-          </View>
-        )}
       </View>
+
+      
 
       {/* Search Bar */}
       <View style={styles.searchSection}>
@@ -1041,11 +1170,14 @@ export default function EnhancedShopTab() {
                 );
               }}
             >
-              <Text style={styles.sortText}>Sort ↕️</Text>
+              <Text style={styles.sortText}>Sort ↕</Text>
             </TouchableOpacity>
           </View>
         </View>
       </View>
+
+      {/* Rescue Deals Section - Now at the top */}
+      <RescueDealsSection />
 
       {/* Filters */}
       <View style={styles.filtersSection}>
@@ -1099,6 +1231,7 @@ export default function EnhancedShopTab() {
         )}
       </View>
 
+      <RescueDealModal />
       <EcoAlternativeModal />
     </ScrollView>
   );
@@ -1112,9 +1245,10 @@ const styles = StyleSheet.create({
   header: {
     padding: 24,
     backgroundColor: '#0071CE',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    borderBottomLeftRadius: 5,
+    borderBottomRightRadius: 5,
     alignItems: 'center',
+    paddingTop: 50,
   },
   storeText: {
     color: '#fff',
@@ -1150,16 +1284,120 @@ const styles = StyleSheet.create({
     color: '#E6F3FF',
     fontSize: 12,
   },
-  liveCounter: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  rescueSection: {
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
   },
-  liveCounterText: {
-    color: '#FFC220',
+  rescueHeader: {
+    marginBottom: 16,
+  },
+  rescueTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  rescueSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  rescueScroll: {
+    paddingHorizontal: 4,
+  },
+  rescueCard: {
+    backgroundColor: '#FEFEFE',
+    borderRadius: 12,
+    padding: 16,
+    marginRight: 12,
+    width: 280,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rescueCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  urgencyBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  urgencyText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  rescueDiscount: {
     fontSize: 14,
     fontWeight: 'bold',
+    color: '#EF4444',
+  },
+  rescueItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  rescueItemBrand: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  rescuePricing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  rescueOriginalPrice: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+  },
+  rescuePrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+  rescueInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rescueReason: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  rescueQuantity: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '600',
+  },
+  rescueActions: {
+    alignItems: 'center',
+  },
+  rescueEcoPoints: {
+    fontSize: 11,
+    color: '#059669',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   searchSection: {
     paddingHorizontal: 16,
@@ -1561,6 +1799,200 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 20,
+  },
+  rescueDealDetailCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  rescueDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  rescueDetailDiscount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#EF4444',
+  },
+  rescueDetailName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  rescueDetailBrand: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  rescueDetailAisle: {
+    fontSize: 14,
+    color: '#3B82F6',
+    marginBottom: 16,
+  },
+  rescueDetailPricing: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  rescueDetailOriginalPrice: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginBottom: 4,
+  },
+  rescueDetailPrice: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 4,
+  },
+  rescueDetailSavings: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  rescueDetailInfo: {
+    gap: 8,
+  },
+  rescueDetailInfoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  rescueDetailInfoLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  rescueDetailInfoValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  actionOptionsCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionOptionsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  actionOption: {
+    marginBottom: 16,
+  },
+  actionOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionOptionIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  actionOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  actionOptionDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  actionOptionReward: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 12,
+  },
+  actionOptionRewardText: {
+    fontSize: 12,
+    color: '#92400E',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  actionOptionDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 16,
+  },
+  buyButton: {
+    backgroundColor: '#0071CE',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  buyButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  donateButton: {
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  donateButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  impactCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  impactTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  impactDescription: {
+    fontSize: 14,
+    color: '#047857',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  impactStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  impactStat: {
+    alignItems: 'center',
+  },
+  impactStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 4,
+  },
+  impactStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
   },
   comparisonCard: {
     backgroundColor: 'white',

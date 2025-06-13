@@ -32,6 +32,7 @@ export default function EmployeeTabsLayout() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          headerShown: false,
         }}
       >
         <Tabs.Screen

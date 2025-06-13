@@ -1,15 +1,15 @@
 // app/(employee)/(tabs)/customers.tsx
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const customerData = [
@@ -479,6 +479,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#047857',
     paddingHorizontal: 20,
     paddingVertical: 24,
+    paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,
