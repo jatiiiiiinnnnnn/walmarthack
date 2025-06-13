@@ -1,4 +1,4 @@
-// app/(customer)/(tabs)/dashboard.tsx - COMPLETE Enhanced Dashboard with Rescue Deals
+// app/(customer)/(tabs)/dashboard.tsx - Updated with Paid Donations
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -73,6 +73,7 @@ interface Filter {
   count?: number;
 }
 
+
 export default function EnhancedDashboard() {
   const { 
     rescueDeals, 
@@ -81,7 +82,8 @@ export default function EnhancedDashboard() {
     todaysStats,
     addToCart,
     userEcoPoints,
-    setUserEcoPoints
+    setUserEcoPoints,
+    addDonation,
   } = useAppData();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -459,6 +461,9 @@ export default function EnhancedDashboard() {
       }
     }
   ];
+  const calculateDonationCashback = (rescuePrice: number) => {
+    return Math.round(rescuePrice * 0.5 * 100); // 50% cashback, $1 = 100 points
+  };
 
   // Update filter counts
   useEffect(() => {
@@ -616,8 +621,8 @@ export default function EnhancedDashboard() {
         ecoPoints: deal.ecoPoints,
         aisle: deal.aisle,
         isRescueDeal: true,
-        co2Impact: 1.5, // Estimated
-        sustainabilityScore: 8.0, // High for rescue deals
+        co2Impact: 1.5,
+        sustainabilityScore: 8.0,
         isEcoFriendly: true
       });
       
@@ -629,18 +634,41 @@ export default function EnhancedDashboard() {
         [
           { text: 'Continue Shopping', style: 'default' },
           { text: 'View Cart', onPress: () => {
-            // Navigate to cart tab - in real app would use router
             Alert.alert('Navigation', 'Would navigate to cart tab');
           }}
         ]
       );
     } else {
-      // Donate to charity
-      setUserEcoPoints(prev => prev + deal.donationEcoPoints);
+      // Donate - user pays rescue price, gets 50% cashback as eco points
+      const cashbackPoints = calculateDonationCashback(deal.rescuePrice);
+      
+      // Add to donations (if addDonation function exists in context)
+      if (addDonation) {
+        addDonation({
+          id: deal.id + '_donation',
+          name: deal.name,
+          brand: deal.brand,
+          price: deal.rescuePrice,
+          originalPrice: deal.originalPrice,
+          category: deal.category,
+          aisle: deal.aisle,
+          co2Impact: 1.5,
+          sustainabilityScore: 8.0,
+          isEcoFriendly: true,
+          isDonation: true,
+          donationDetails: {
+            cashbackPoints: cashbackPoints,
+            donatedTo: 'Local Food Banks',
+            impactMessage: 'Will feed families in need'
+          }
+        });
+      }
+      
+      setUserEcoPoints(prev => prev + cashbackPoints);
       
       Alert.alert(
-        '❤️ Donated to Charity!',
-        `${deal.name} has been donated to local food banks.\n\n💰 You earned ${deal.donationEcoPoints} EcoPoints!\n🌟 Thank you for your generosity!\n🌱 You helped prevent waste AND fed families in need.`,
+        '❤️ Thank You for Your Generosity!',
+        `You donated ${deal.name} to local food banks and helped save families.\n\n💳 Payment: $${deal.rescuePrice.toFixed(2)}\n💰 Walmart Cashback: ${cashbackPoints} EcoPoints (50%)\n\n🌟 Your donation will help feed families in need!\n🌱 You also helped prevent food waste and supported sustainability.`,
         [{ text: 'Amazing!', style: 'default' }]
       );
     }
@@ -830,14 +858,24 @@ export default function EnhancedDashboard() {
               <View style={styles.actionOption}>
                 <View style={styles.actionOptionHeader}>
                   <Text style={styles.actionOptionIcon}>❤️</Text>
-                  <Text style={styles.actionOptionTitle}>Donate to Charity</Text>
+                  <Text style={styles.actionOptionTitle}>Donate to Save Families</Text>
                 </View>
                 <Text style={styles.actionOptionDescription}>
-                  Donate this item to local food banks and help families in need
+                  Pay rescue price to donate this item to local food banks and help families in need. Walmart will give you 50% cashback as EcoPoints!
                 </Text>
-                <View style={styles.actionOptionReward}>
-                  <Text style={styles.actionOptionRewardText}>
-                    💰 Earn {selectedRescueDeal.donationEcoPoints} EcoPoints (BONUS!)
+                <View style={styles.donationBenefitsCard}>
+                  <Text style={styles.donationBenefitsTitle}>💝 Donation Benefits:</Text>
+                  <Text style={styles.donationBenefit}>
+                    💳 You pay: ${selectedRescueDeal.rescuePrice.toFixed(2)}
+                  </Text>
+                  <Text style={styles.donationBenefit}>
+                    💰 Walmart cashback: {calculateDonationCashback(selectedRescueDeal.rescuePrice)} EcoPoints (50%)
+                  </Text>
+                  <Text style={styles.donationBenefit}>
+                    🍽️ Will help feed families in need
+                  </Text>
+                  <Text style={styles.donationBenefit}>
+                    🌱 Prevents food waste & supports environment
                   </Text>
                 </View>
                 <TouchableOpacity 
@@ -845,7 +883,7 @@ export default function EnhancedDashboard() {
                   onPress={() => handleRescueDealAction(selectedRescueDeal, 'donate')}
                 >
                   <Text style={styles.donateButtonText}>
-                    ❤️ Donate to Charity (+{selectedRescueDeal.donationEcoPoints} pts)
+                    ❤️ Donate for ${selectedRescueDeal.rescuePrice.toFixed(2)} (Get {calculateDonationCashback(selectedRescueDeal.rescuePrice)} pts back)
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -855,7 +893,7 @@ export default function EnhancedDashboard() {
             <View style={styles.impactCard}>
               <Text style={styles.impactTitle}>🌍 Your Impact</Text>
               <Text style={styles.impactDescription}>
-                By choosing this rescue deal, you're helping prevent food waste and supporting sustainability.
+                By choosing this rescue deal, you're helping prevent food waste, supporting sustainability, and potentially saving families.
               </Text>
               <View style={styles.impactStats}>
                 <View style={styles.impactStat}>
@@ -867,8 +905,8 @@ export default function EnhancedDashboard() {
                   <Text style={styles.impactStatLabel}>CO₂ Prevented</Text>
                 </View>
                 <View style={styles.impactStat}>
-                  <Text style={styles.impactStatValue}>${(selectedRescueDeal.originalPrice - selectedRescueDeal.rescuePrice).toFixed(2)}</Text>
-                  <Text style={styles.impactStatLabel}>Value Saved</Text>
+                  <Text style={styles.impactStatValue}>👨‍👩‍👧‍👦</Text>
+                  <Text style={styles.impactStatLabel}>Family Helped</Text>
                 </View>
               </View>
             </View>
@@ -877,7 +915,6 @@ export default function EnhancedDashboard() {
       </SafeAreaView>
     </Modal>
   );
-
   const ProductCard = ({ product }: { product: Product }) => (
     <View style={viewMode === 'grid' ? styles.productCardGrid : styles.productCardList}>
       {/* Badges */}
@@ -1297,6 +1334,26 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderLeftWidth: 4,
     borderLeftColor: '#EF4444',
+  },
+  donationBenefitsCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+  },
+  donationBenefitsTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#92400E',
+    marginBottom: 8,
+  },
+  donationBenefit: {
+    fontSize: 12,
+    color: '#92400E',
+    marginBottom: 4,
+    paddingLeft: 8,
   },
   rescueHeader: {
     marginBottom: 16,

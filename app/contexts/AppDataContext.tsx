@@ -93,7 +93,24 @@ export interface CartItem {
   isEcoAlternative?: boolean;
   isScanned?: boolean;
 }
-
+export interface DonationItem {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  originalPrice?: number;
+  category: string;
+  aisle: string;
+  co2Impact: number;
+  sustainabilityScore: number;
+  isEcoFriendly: boolean;
+  isDonation: true;
+  donationDetails: {
+    cashbackPoints: number;
+    donatedTo: string;
+    impactMessage: string;
+  };
+}
 export interface Order {
   id: string;
   date: Date;
@@ -179,6 +196,10 @@ interface AppDataContextType {
   userProfile: UserProfile;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
   userEcoPoints: number;
+  donations: any[];
+  addDonation: (donation: any) => void;
+  removeDonation: (id: string) => void;
+  clearDonations: () => void;
   setUserEcoPoints: (points: number | ((prev: number) => number)) => void;
   addEcoPoints: (points: number) => void;
   spendEcoPoints: (points: number) => boolean;
@@ -295,6 +316,7 @@ interface AppDataProviderProps {
   children: ReactNode;
 }
 
+
 export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) => {
   // User Profile State
   const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -315,6 +337,7 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   const [userEcoPoints, setUserEcoPoints] = useState(847);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [donations, setDonations] = useState<any[]>([]);
   const [appliedDiscounts, setAppliedDiscounts] = useState<string[]>([]);
 
   // Static data - move to useMemo to prevent recreation
@@ -436,6 +459,16 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
   // CRITICAL FIX: Memoize functions to prevent recreation on every render
   const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
     setUserProfile(prev => ({ ...prev, ...updates }));
+  }, []);
+  const addDonation = useCallback((donation: DonationItem) => {
+    setDonations(prev => [donation, ...prev]);
+  }, []);
+  // Remove a donation by id
+  const removeDonation = useCallback((id: string) => {
+    setDonations(prev => prev.filter(d => d.id !== id));
+  }, []);
+  const clearDonations = useCallback(() => {
+    setDonations([]);
   }, []);
 
   const addEcoPoints = useCallback((points: number) => {
@@ -711,6 +744,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     addOrder,
     rescueDeals,
     createRescueDeal,
+    donations,
+    addDonation,
+    removeDonation,
+    clearDonations,
     updateRescueDealStatus,
     dashboardData,
     todaysStats,
@@ -730,6 +767,10 @@ export const AppDataProvider: React.FC<AppDataProviderProps> = ({ children }) =>
     userProfile,
     updateUserProfile,
     userEcoPoints,
+    donations,
+    addDonation,
+    removeDonation,
+    clearDonations,
     setUserEcoPoints,
     addEcoPoints,
     spendEcoPoints,
