@@ -332,3 +332,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 **Built with ❤️ for a sustainable future 🌍**
 
 For support or questions, please open an issue or contact our team at [support@ecoacart.app](mailto:support@ecoacart.app)
+
+Have a great day :) 
