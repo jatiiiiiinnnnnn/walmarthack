@@ -1,65 +1,96 @@
-// app/(customer)/(tabs)/profile.tsx
+// app/(customer)/(tabs)/profile.tsx - Enhanced with EcoPoints Management
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { useAppData } from '../../contexts/AppDataContext';
 
-export default function ProfileTab() {
-  const [userProfile, setUserProfile] = useState({
-    name: 'Alex Green',
-    email: 'alex.green@email.com',
-    phone: '+1 (555) 123-4567',
-    location: 'Delhi, IN',
-    joinDate: '2024-11-15',
-    preferredStore: 'Walmart Supercenter - Downtown',
-    dietaryPreferences: ['Vegetarian', 'Organic'],
-    sustainabilityGoals: ['Low Carbon', 'Zero Waste'],
-    notifications: {
-      rescueDeals: true,
-      challenges: true,
-      achievements: true,
-      weekly: false,
-    }
-  });
-
-  const [userStats, setUserStats] = useState({
-    totalPurchases: 47,
-    co2Saved: 156.3,
-    mealsDonated: 12,
-    moneySaved: 234.50,
-    points: 2847,
-    level: 'Green Warrior',
-    streak: 28,
-    badges: ['Carbon Saver', 'Waste Reducer', 'Plant Pioneer', 'Community Helper']
-  });
+export default function EnhancedProfileTab() {
+  const { 
+    userProfile, 
+    updateUserProfile, 
+    userEcoPoints, 
+    availableDiscounts,
+    appliedDiscounts,
+    cartItems,
+    getCartTotal,
+    getCartItemCount
+  } = useAppData();
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState('');
+  const [showEcoPointsModal, setShowEcoPointsModal] = useState(false);
+  const [showRewardsModal, setShowRewardsModal] = useState(false);
 
   const achievementLevels = [
-    { name: 'Eco Rookie', pointsRequired: 0, color: '#6B7280' },
-    { name: 'Green Warrior', pointsRequired: 500, color: '#059669' },
-    { name: 'Climate Champion', pointsRequired: 1500, color: '#7C3AED' },
-    { name: 'Planet Protector', pointsRequired: 3000, color: '#DC2626' },
-    { name: 'Sustainability Master', pointsRequired: 5000, color: '#F59E0B' }
+    { name: 'Eco Rookie', pointsRequired: 0, color: '#6B7280', benefits: ['Basic eco tips', 'Standard EcoPoints earning'] },
+    { name: 'Green Warrior', pointsRequired: 500, color: '#059669', benefits: ['5% bonus EcoPoints', 'Early access to deals', 'Eco badge'] },
+    { name: 'Climate Champion', pointsRequired: 1500, color: '#7C3AED', benefits: ['10% bonus EcoPoints', 'Exclusive challenges', 'Priority support'] },
+    { name: 'Planet Protector', pointsRequired: 3000, color: '#DC2626', benefits: ['15% bonus EcoPoints', 'VIP rewards', 'Impact multiplier'] },
+    { name: 'Sustainability Master', pointsRequired: 5000, color: '#F59E0B', benefits: ['20% bonus EcoPoints', 'Master rewards', 'Community leader status'] }
   ];
 
-  const currentLevelIndex = achievementLevels.findIndex(level => level.name === userStats.level);
+  const ecoPointsHistory = [
+    { date: '2024-06-13', action: 'Organic product purchase', points: +15, type: 'earned' },
+    { date: '2024-06-12', action: 'Eco Champion discount used', points: -250, type: 'spent' },
+    { date: '2024-06-12', action: 'Scan bonus - eco alternative', points: +10, type: 'earned' },
+    { date: '2024-06-11', action: 'Challenge completion', points: +50, type: 'earned' },
+    { date: '2024-06-10', action: 'Refurbished product purchase', points: +35, type: 'earned' },
+    { date: '2024-06-09', action: 'Eco Starter discount used', points: -100, type: 'spent' },
+    { date: '2024-06-09', action: 'Local product purchase', points: +20, type: 'earned' },
+    { date: '2024-06-08', action: 'Bamboo product purchase', points: +25, type: 'earned' }
+  ];
+
+  const rewardsProgress = [
+    { 
+      name: 'Eco Enthusiast', 
+      description: 'Purchase 10 organic products', 
+      progress: 7, 
+      target: 10, 
+      reward: '100 EcoPoints + Organic Badge',
+      icon: '🥬'
+    },
+    { 
+      name: 'Waste Warrior', 
+      description: 'Rescue 5 food items from waste', 
+      progress: 3, 
+      target: 5, 
+      reward: '150 EcoPoints + Rescue Badge',
+      icon: '🛟'
+    },
+    { 
+      name: 'Carbon Crusher', 
+      description: 'Save 50kg CO₂ through choices', 
+      progress: 32.8, 
+      target: 50, 
+      reward: '200 EcoPoints + Climate Badge',
+      icon: '🌍'
+    },
+    { 
+      name: 'Scan Master', 
+      description: 'Scan 25 products for alternatives', 
+      progress: 18, 
+      target: 25, 
+      reward: '125 EcoPoints + Scanner Badge',
+      icon: '📱'
+    }
+  ];
+
+  const currentLevelIndex = achievementLevels.findIndex(level => level.name === userProfile.level);
   const nextLevel = achievementLevels[currentLevelIndex + 1];
   const levelProgress = nextLevel ? 
-    ((userStats.points - achievementLevels[currentLevelIndex].pointsRequired) / 
-     (nextLevel.pointsRequired - achievementLevels[currentLevelIndex].pointsRequired)) * 100 : 100;
-
+  ((userEcoPoints - achievementLevels[currentLevelIndex].pointsRequired) / 
+   (nextLevel.pointsRequired - achievementLevels[currentLevelIndex].pointsRequired)) * 100 : 100;
   const editProfile = (field: string, currentValue: string) => {
     setEditingField(field);
     setTempValue(currentValue);
@@ -67,63 +98,48 @@ export default function ProfileTab() {
   };
 
   const saveProfileChange = () => {
-    setUserProfile(prev => ({
-      ...prev,
-      [(editingField ?? '')]: tempValue
-    }));
+    if (editingField) {
+      updateUserProfile({ [editingField]: tempValue });
+    }
     setShowEditModal(false);
     Alert.alert('Success', 'Profile updated successfully!');
   };
 
-interface Notifications {
-    rescueDeals: boolean;
-    challenges: boolean;
-    achievements: boolean;
-    weekly: boolean;
-}
-
-interface UserProfile {
-    name: string;
-    email: string;
-    phone: string;
-    location: string;
-    joinDate: string;
-    preferredStore: string;
-    dietaryPreferences: string[];
-    sustainabilityGoals: string[];
-    notifications: Notifications;
-}
-
-interface UserStats {
-    totalPurchases: number;
-    co2Saved: number;
-    mealsDonated: number;
-    moneySaved: number;
-    points: number;
-    level: string;
-    streak: number;
-    badges: string[];
-}
-
-const toggleNotification = (key: keyof Notifications) => {
-    setUserProfile((prev: UserProfile) => ({
-        ...prev,
-        notifications: {
-            ...prev.notifications,
-            [key]: !prev.notifications[key]
-        }
-    }));
-};
+  const toggleNotification = (key: string) => {
+    // Implementation would depend on notification system
+    Alert.alert('Settings Updated', `${key} notification preference updated`);
+  };
 
   const shareMilestone = () => {
     Alert.alert(
       'Share Achievement',
-      `Share your ${userStats.level} achievement and ${userStats.co2Saved.toFixed(1)} kg CO₂ saved!`,
+      `Share your ${userProfile.level} achievement and ${userProfile.co2Saved.toFixed(1)} kg CO₂ saved!`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Share', onPress: () => Alert.alert('Shared!', 'Your achievement has been shared!') }
       ]
     );
+  };
+
+  const redeemReward = (reward: any) => {
+    if (reward.progress >= reward.target) {
+      Alert.alert(
+        'Reward Ready!',
+        `Congratulations! You've completed the ${reward.name} challenge. Claim your reward: ${reward.reward}`,
+        [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Claim Now', onPress: () => {
+            // Add points and badge to user profile
+            Alert.alert('Reward Claimed!', `You've earned your ${reward.reward}!`);
+          }}
+        ]
+      );
+    } else {
+      Alert.alert(
+        'Keep Going!',
+        `You're ${reward.target - reward.progress} away from completing ${reward.name}. Keep up the great work!`
+      );
+    }
   };
 
   interface ProfileStatProps {
@@ -141,43 +157,133 @@ const toggleNotification = (key: keyof Notifications) => {
     </View>
   );
 
-  interface ProfileItemProps {
-    label: string;
-    value: string;
-    editable?: boolean;
-    onPress?: () => void;
-  }
+  const EcoPointsModal = () => (
+    <Modal visible={showEcoPointsModal} animationType="slide" presentationStyle="formSheet">
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={() => setShowEcoPointsModal(false)}>
+            <Text style={styles.modalCancelButton}>✕ Close</Text>
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>EcoPoints History</Text>
+          <Text style={styles.modalBalance}>💰 {userEcoPoints}</Text>
+        </View>
+        
+        <ScrollView style={styles.modalContent}>
+          <View style={styles.pointsSummary}>
+            <Text style={styles.pointsSummaryTitle}>This Month</Text>
+            <View style={styles.pointsSummaryStats}>
+              <View style={styles.pointsStat}>
+                <Text style={styles.pointsStatValue}>+{ecoPointsHistory.filter(h => h.type === 'earned').reduce((sum, h) => sum + h.points, 0)}</Text>
+                <Text style={styles.pointsStatLabel}>Earned</Text>
+              </View>
+              <View style={styles.pointsStat}>
+                <Text style={styles.pointsStatValue}>{ecoPointsHistory.filter(h => h.type === 'spent').reduce((sum, h) => sum + Math.abs(h.points), 0)}</Text>
+                <Text style={styles.pointsStatLabel}>Spent</Text>
+              </View>
+            </View>
+          </View>
 
-  const ProfileItem: React.FC<ProfileItemProps> = ({ label, value, editable = false, onPress }) => (
-    <TouchableOpacity 
-      style={[styles.profileItem, !editable && styles.profileItemDisabled]}
-      onPress={editable ? onPress : undefined}
-      disabled={!editable}
-    >
-      <Text style={styles.profileItemLabel}>{label}</Text>
-      <View style={styles.profileItemRight}>
-        <Text style={styles.profileItemValue}>{value}</Text>
-        {editable && <Text style={styles.profileItemArrow}>›</Text>}
-      </View>
-    </TouchableOpacity>
+          <View style={styles.historySection}>
+            <Text style={styles.historySectionTitle}>Recent Activity</Text>
+            {ecoPointsHistory.map((entry, index) => (
+              <View key={index} style={styles.historyItem}>
+                <View style={styles.historyItemContent}>
+                  <Text style={styles.historyAction}>{entry.action}</Text>
+                  <Text style={styles.historyDate}>{new Date(entry.date).toLocaleDateString()}</Text>
+                </View>
+                <Text style={[
+                  styles.historyPoints,
+                  { color: entry.type === 'earned' ? '#10B981' : '#EF4444' }
+                ]}>
+                  {entry.type === 'earned' ? '+' : ''}{entry.points}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.pointsInfoSection}>
+            <Text style={styles.pointsInfoTitle}>How to Earn More EcoPoints</Text>
+            <View style={styles.pointsInfoList}>
+              <View style={styles.pointsInfoItem}>
+                <Text style={styles.pointsInfoIcon}>🥬</Text>
+                <Text style={styles.pointsInfoText}>Choose organic products: 8-25 points</Text>
+              </View>
+              <View style={styles.pointsInfoItem}>
+                <Text style={styles.pointsInfoIcon}>🏘️</Text>
+                <Text style={styles.pointsInfoText}>Buy local products: 15-30 points</Text>
+              </View>
+              <View style={styles.pointsInfoItem}>
+                <Text style={styles.pointsInfoIcon}>📱</Text>
+                <Text style={styles.pointsInfoText}>Scan & choose eco alternatives: 10-15 bonus</Text>
+              </View>
+              <View style={styles.pointsInfoItem}>
+                <Text style={styles.pointsInfoIcon}>🎯</Text>
+                <Text style={styles.pointsInfoText}>Complete challenges: 50-300 points</Text>
+              </View>
+              <View style={styles.pointsInfoItem}>
+                <Text style={styles.pointsInfoIcon}>♻️</Text>
+                <Text style={styles.pointsInfoText}>Refurbished items: 30-50 points</Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 
-  interface NotificationItemProps {
-    label: string;
-    value: boolean;
-    onToggle: () => void;
-  }
-
-  const NotificationItem: React.FC<NotificationItemProps> = ({ label, value, onToggle }) => (
-    <View style={styles.notificationItem}>
-      <Text style={styles.notificationLabel}>{label}</Text>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: '#E5E7EB', true: '#BBF7D0' }}
-        thumbColor={value ? '#059669' : '#9CA3AF'}
-      />
-    </View>
+  const RewardsModal = () => (
+    <Modal visible={showRewardsModal} animationType="slide" presentationStyle="formSheet">
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={() => setShowRewardsModal(false)}>
+            <Text style={styles.modalCancelButton}>✕ Close</Text>
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>Rewards Progress</Text>
+          <View />
+        </View>
+        
+        <ScrollView style={styles.modalContent}>
+          <Text style={styles.rewardsTitle}>Available Rewards</Text>
+          {rewardsProgress.map((reward, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={styles.rewardCard}
+              onPress={() => redeemReward(reward)}
+            >
+              <View style={styles.rewardHeader}>
+                <Text style={styles.rewardIcon}>{reward.icon}</Text>
+                <View style={styles.rewardInfo}>
+                  <Text style={styles.rewardName}>{reward.name}</Text>
+                  <Text style={styles.rewardDescription}>{reward.description}</Text>
+                </View>
+                <View style={styles.rewardProgress}>
+                  <Text style={styles.rewardProgressText}>
+                    {reward.progress}/{reward.target}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.rewardProgressBar}>
+                <View 
+                  style={[
+                    styles.rewardProgressFill, 
+                    { width: `${Math.min((reward.progress / reward.target) * 100, 100)}%` }
+                  ]} 
+                />
+              </View>
+              
+              <Text style={styles.rewardReward}>🎁 {reward.reward}</Text>
+              
+              {reward.progress >= reward.target && (
+                <View style={styles.rewardReadyBadge}>
+                  <Text style={styles.rewardReadyText}>Ready to Claim!</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 
   const EditModal = () => (
@@ -219,8 +325,27 @@ const toggleNotification = (key: keyof Notifications) => {
           <Text style={styles.profileName}>{userProfile.name}</Text>
           <Text style={styles.profileEmail}>{userProfile.email}</Text>
           <View style={styles.profileLevel}>
-            <Text style={styles.profileLevelText}>{userStats.level}</Text>
-            <Text style={styles.profilePoints}>{userStats.points} points</Text>
+            <Text style={styles.profileLevelText}>{userProfile.level}</Text>
+            <Text style={styles.profilePoints}>{userEcoPoints} EcoPoints</Text>
+          </View>
+        </View>
+
+        {/* Quick Stats */}
+        <View style={styles.quickStatsSection}>
+          <View style={styles.quickStatsGrid}>
+            <TouchableOpacity style={styles.quickStatCard} onPress={() => setShowEcoPointsModal(true)}>
+              <Text style={styles.quickStatIcon}>💰</Text>
+              <Text style={styles.quickStatValue}>{userEcoPoints}</Text>
+              <Text style={styles.quickStatLabel}>EcoPoints</Text>
+              <Text style={styles.quickStatAction}>View History ›</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.quickStatCard} onPress={() => setShowRewardsModal(true)}>
+              <Text style={styles.quickStatIcon}>🎁</Text>
+              <Text style={styles.quickStatValue}>{rewardsProgress.filter(r => r.progress >= r.target).length}</Text>
+              <Text style={styles.quickStatLabel}>Rewards Ready</Text>
+              <Text style={styles.quickStatAction}>Claim Now ›</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -245,9 +370,20 @@ const toggleNotification = (key: keyof Notifications) => {
           </View>
           {nextLevel && (
             <Text style={styles.levelProgressText}>
-              {nextLevel.pointsRequired - userStats.points} points to next level
+              {nextLevel.pointsRequired - userEcoPoints} EcoPoints to next level
             </Text>
           )}
+          
+          {/* Level Benefits */}
+          <View style={styles.levelBenefits}>
+            <Text style={styles.levelBenefitsTitle}>Current Level Benefits:</Text>
+            {achievementLevels[currentLevelIndex].benefits.map((benefit, index) => (
+              <View key={index} style={styles.levelBenefit}>
+                <Text style={styles.levelBenefitBullet}>✓</Text>
+                <Text style={styles.levelBenefitText}>{benefit}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         {/* Stats Grid */}
@@ -257,35 +393,59 @@ const toggleNotification = (key: keyof Notifications) => {
             <ProfileStat
               icon="🌱"
               label="CO₂ Saved"
-              value={`${userStats.co2Saved} kg`}
+              value={`${userProfile.co2Saved.toFixed(1)} kg`}
               color="#059669"
             />
             <ProfileStat
               icon="🥗"
               label="Meals Donated"
-              value={userStats.mealsDonated.toString()}
+              value={userProfile.mealsDonated.toString()}
               color="#F59E0B"
             />
             <ProfileStat
               icon="💰"
               label="Money Saved"
-              value={`$${userStats.moneySaved.toFixed(2)}`}
+              value={`₹${(userProfile.moneySaved * 75).toFixed(0)}`}
               color="#2563EB"
             />
             <ProfileStat
               icon="🔥"
               label="Day Streak"
-              value={userStats.streak.toString()}
+              value={userProfile.streak.toString()}
               color="#EF4444"
             />
           </View>
         </View>
 
+        {/* Cart Summary */}
+        {getCartItemCount() > 0 && (
+          <View style={styles.cartSummarySection}>
+            <Text style={styles.sectionTitle}>Current Cart</Text>
+            <View style={styles.cartSummaryCard}>
+              <View style={styles.cartSummaryHeader}>
+                <Text style={styles.cartSummaryIcon}>🛒</Text>
+                <View style={styles.cartSummaryInfo}>
+                  <Text style={styles.cartSummaryTitle}>
+                    {getCartItemCount()} items • ₹{(getCartTotal() * 75).toFixed(0)}
+                  </Text>
+                  <Text style={styles.cartSummarySubtitle}>
+                    EcoPoints to earn: {cartItems.reduce((sum, item) => sum + (item.ecoPoints * item.quantity), 0)}
+                  </Text>
+                </View>
+                <Text style={styles.cartSummaryArrow}>›</Text>
+              </View>
+              <TouchableOpacity style={styles.viewCartButton}>
+                <Text style={styles.viewCartButtonText}>View Cart</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* Badges */}
         <View style={styles.badgesSection}>
           <Text style={styles.sectionTitle}>Achievements</Text>
           <View style={styles.badgesGrid}>
-            {userStats.badges.map((badge, index) => (
+            {userProfile.badges.map((badge, index) => (
               <View key={index} style={styles.badge}>
                 <Text style={styles.badgeIcon}>🏅</Text>
                 <Text style={styles.badgeText}>{badge}</Text>
@@ -301,56 +461,55 @@ const toggleNotification = (key: keyof Notifications) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile Information</Text>
           <View style={styles.profileInfoCard}>
-            <ProfileItem
-              label="Full Name"
-              value={userProfile.name}
-              editable
+            <TouchableOpacity 
+              style={styles.profileItem}
               onPress={() => editProfile('name', userProfile.name)}
-            />
-            <ProfileItem
-              label="Email"
-              value={userProfile.email}
-              editable
-              onPress={() => editProfile('email', userProfile.email)}
-            />
-            <ProfileItem
-              label="Phone"
-              value={userProfile.phone}
-              editable
-              onPress={() => editProfile('phone', userProfile.phone)}
-            />
-            <ProfileItem
-              label="Location"
-              value={userProfile.location}
-              editable
-              onPress={() => editProfile('location', userProfile.location)}
-            />
-            <ProfileItem
-              label="Member Since"
-              value={new Date(userProfile.joinDate).toLocaleDateString()}
-            />
-            <ProfileItem
-              label="Preferred Store"
-              value={userProfile.preferredStore}
-            />
-          </View>
-        </View>
+            >
+              <Text style={styles.profileItemLabel}>Full Name</Text>
+              <View style={styles.profileItemRight}>
+                <Text style={styles.profileItemValue}>{userProfile.name}</Text>
+                <Text style={styles.profileItemArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
 
-        {/* Preferences */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Preferences</Text>
-          <View style={styles.preferencesCard}>
-            <View style={styles.preferenceItem}>
-              <Text style={styles.preferenceLabel}>Dietary Preferences</Text>
-              <Text style={styles.preferenceValue}>
-                {userProfile.dietaryPreferences.join(', ')}
-              </Text>
-            </View>
-            <View style={styles.preferenceItem}>
-              <Text style={styles.preferenceLabel}>Sustainability Goals</Text>
-              <Text style={styles.preferenceValue}>
-                {userProfile.sustainabilityGoals.join(', ')}
-              </Text>
+            <TouchableOpacity 
+              style={styles.profileItem}
+              onPress={() => editProfile('email', userProfile.email)}
+            >
+              <Text style={styles.profileItemLabel}>Email</Text>
+              <View style={styles.profileItemRight}>
+                <Text style={styles.profileItemValue}>{userProfile.email}</Text>
+                <Text style={styles.profileItemArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.profileItem}
+              onPress={() => editProfile('phone', userProfile.phone)}
+            >
+              <Text style={styles.profileItemLabel}>Phone</Text>
+              <View style={styles.profileItemRight}>
+                <Text style={styles.profileItemValue}>{userProfile.phone}</Text>
+                <Text style={styles.profileItemArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.profileItem}
+              onPress={() => editProfile('location', userProfile.location)}
+            >
+              <Text style={styles.profileItemLabel}>Location</Text>
+              <View style={styles.profileItemRight}>
+                <Text style={styles.profileItemValue}>{userProfile.location}</Text>
+                <Text style={styles.profileItemArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={[styles.profileItem, styles.profileItemDisabled]}>
+              <Text style={styles.profileItemLabel}>Member Since</Text>
+              <View style={styles.profileItemRight}>
+                <Text style={styles.profileItemValue}>November 2024</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -359,26 +518,42 @@ const toggleNotification = (key: keyof Notifications) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notifications</Text>
           <View style={styles.notificationsCard}>
-            <NotificationItem
-              label="Rescue Deal Alerts"
-              value={userProfile.notifications.rescueDeals}
-              onToggle={() => toggleNotification('rescueDeals')}
-            />
-            <NotificationItem
-              label="Challenge Updates"
-              value={userProfile.notifications.challenges}
-              onToggle={() => toggleNotification('challenges')}
-            />
-            <NotificationItem
-              label="Achievement Notifications"
-              value={userProfile.notifications.achievements}
-              onToggle={() => toggleNotification('achievements')}
-            />
-            <NotificationItem
-              label="Weekly Summary"
-              value={userProfile.notifications.weekly}
-              onToggle={() => toggleNotification('weekly')}
-            />
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationLabel}>Rescue Deal Alerts</Text>
+              <Switch
+                value={true}
+                onValueChange={() => toggleNotification('rescueDeals')}
+                trackColor={{ false: '#E5E7EB', true: '#BBF7D0' }}
+                thumbColor={'#059669'}
+              />
+            </View>
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationLabel}>Challenge Updates</Text>
+              <Switch
+                value={true}
+                onValueChange={() => toggleNotification('challenges')}
+                trackColor={{ false: '#E5E7EB', true: '#BBF7D0' }}
+                thumbColor={'#059669'}
+              />
+            </View>
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationLabel}>Achievement Notifications</Text>
+              <Switch
+                value={true}
+                onValueChange={() => toggleNotification('achievements')}
+                trackColor={{ false: '#E5E7EB', true: '#BBF7D0' }}
+                thumbColor={'#059669'}
+              />
+            </View>
+            <View style={styles.notificationItem}>
+              <Text style={styles.notificationLabel}>Weekly Summary</Text>
+              <Switch
+                value={false}
+                onValueChange={() => toggleNotification('weekly')}
+                trackColor={{ false: '#E5E7EB', true: '#BBF7D0' }}
+                thumbColor={'#059669'}
+              />
+            </View>
           </View>
         </View>
 
@@ -406,6 +581,8 @@ const toggleNotification = (key: keyof Notifications) => {
         </View>
       </ScrollView>
 
+      <EcoPointsModal />
+      <RewardsModal />
       <EditModal />
     </SafeAreaView>
   );
@@ -466,10 +643,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
   },
+  quickStatsSection: {
+    padding: 16,
+  },
+  quickStatsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickStatCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    flex: 1,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  quickStatIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  quickStatValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  quickStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  quickStatAction: {
+    fontSize: 11,
+    color: '#059669',
+    fontWeight: '500',
+  },
   levelSection: {
     backgroundColor: 'white',
     margin: 16,
-    marginBottom: 0,
+    marginTop: 0,
     borderRadius: 12,
     padding: 20,
     shadowColor: '#000',
@@ -507,6 +723,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  levelBenefits: {
+    marginTop: 8,
+  },
+  levelBenefitsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  levelBenefit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  levelBenefitBullet: {
+    fontSize: 12,
+    color: '#10B981',
+    marginRight: 8,
+    fontWeight: 'bold',
+  },
+  levelBenefitText: {
+    fontSize: 12,
+    color: '#6B7280',
   },
   statsSection: {
     margin: 16,
@@ -549,6 +790,58 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  cartSummarySection: {
+    margin: 16,
+    marginBottom: 0,
+  },
+  cartSummaryCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cartSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cartSummaryIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  cartSummaryInfo: {
+    flex: 1,
+  },
+  cartSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  cartSummarySubtitle: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '500',
+  },
+  cartSummaryArrow: {
+    fontSize: 18,
+    color: '#9CA3AF',
+  },
+  viewCartButton: {
+    backgroundColor: '#0071CE',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  viewCartButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   badgesSection: {
     margin: 16,
@@ -635,29 +928,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#9CA3AF',
   },
-  preferencesCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  preferenceItem: {
-    marginBottom: 16,
-  },
-  preferenceLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  preferenceValue: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
   notificationsCard: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -735,7 +1005,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
-    textTransform: 'capitalize',
+  },
+  modalBalance: {
+    fontSize: 16,
+    color: '#F59E0B',
+    fontWeight: '600',
   },
   modalSaveButton: {
     fontSize: 16,
@@ -758,5 +1032,188 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  pointsSummary: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  pointsSummaryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  pointsSummaryStats: {
+    flexDirection: 'row',
+    gap: 32,
+  },
+  pointsStat: {
+    alignItems: 'center',
+  },
+  pointsStatValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 4,
+  },
+  pointsStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  historySection: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  historySectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  historyItemContent: {
+    flex: 1,
+  },
+  historyAction: {
+    fontSize: 14,
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  historyDate: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  historyPoints: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pointsInfoSection: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  pointsInfoTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  pointsInfoList: {
+    gap: 12,
+  },
+  pointsInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pointsInfoIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  pointsInfoText: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+  },
+  rewardsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  rewardCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  rewardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  rewardIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  rewardInfo: {
+    flex: 1,
+  },
+  rewardName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  rewardDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  rewardProgress: {
+    alignItems: 'center',
+  },
+  rewardProgressText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  rewardProgressBar: {
+    height: 6,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 3,
+    marginBottom: 8,
+  },
+  rewardProgressFill: {
+    height: '100%',
+    backgroundColor: '#059669',
+    borderRadius: 3,
+  },
+  rewardReward: {
+    fontSize: 12,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
+  rewardReadyBadge: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  rewardReadyText: {
+    fontSize: 12,
+    color: '#92400E',
+    fontWeight: '600',
   },
 });
