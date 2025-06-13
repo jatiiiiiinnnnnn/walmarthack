@@ -14,9 +14,9 @@ export default function EmployeeTabsLayout() {
             backgroundColor: '#ffffff',
             borderTopWidth: 1,
             borderTopColor: '#E5E7EB',
-            paddingBottom: 8,
+            paddingBottom: 20,
             paddingTop: 8,
-            height: 84,
+            height: 90,
           },
           tabBarLabelStyle: {
             fontSize: 10,

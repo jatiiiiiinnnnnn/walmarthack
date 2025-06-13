@@ -1,9 +1,11 @@
-// dashboard.tsx - Updated to use shared context
-import { useState } from "react";
+// dashboard.tsx - Enhanced Employee Dashboard with Dynamic Features
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from 'expo-router';
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
   Dimensions,
-  FlatList,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -12,21 +14,27 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Vibration,
   View
 } from "react-native";
-
 import { useAppData } from "../../contexts/AppDataContext";
 
-// Add at the very top of your JSX return:
-
-
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 type RescueDealCategory = 'Produce' | 'Bakery' | 'Dairy' | 'Meat';
 
+interface EmployeeStats {
+  weeklyImpact: number;
+  monthlyTarget: number;
+  currentStreak: number;
+  sustainabilityLevel: number;
+  badges: string[];
+  weeklyGoal: number;
+  completedTasks: number;
+  totalTasks: number;
+}
 
 export default function EmployeeDashboard() {
-
   const {
     createRescueDeal,
     updateRescueDealStatus,
@@ -35,22 +43,91 @@ export default function EmployeeDashboard() {
     todaysStats
   } = useAppData();
 
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  // State management
   const [modalVisible, setModalVisible] = useState(false);
   const [dealCategory, setDealCategory] = useState<RescueDealCategory>('Produce');
   const [dealDescription, setDealDescription] = useState('');
   const [dealDiscount, setDealDiscount] = useState('');
   const [dealQuantity, setDealQuantity] = useState('');
   const [recentlyUpdated, setRecentlyUpdated] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [notificationCount, setNotificationCount] = useState(3);
+
+  // Employee sustainability stats
+  const [employeeStats, setEmployeeStats] = useState<EmployeeStats>({
+    weeklyImpact: 247,
+    monthlyTarget: 1000,
+    currentStreak: 12,
+    sustainabilityLevel: 7,
+    badges: ['🌱', '♻️', '🏆', '⭐'],
+    weeklyGoal: 50,
+    completedTasks: 8,
+    totalTasks: 12
+  });
 
   const [systemSettings, setSystemSettings] = useState({
     autoRescueDeals: true,
     donationAlerts: true,
     customerNotifications: true,
     peakHourOptimization: false,
-    sustainabilityReports: true
+    sustainabilityReports: true,
+    realTimeTracking: true,
+    teamCollaboration: true
   });
 
   const categories: RescueDealCategory[] = ['Produce', 'Bakery', 'Dairy', 'Meat'];
+
+  // Initialize animations
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: employeeStats.weeklyImpact / employeeStats.monthlyTarget,
+        duration: 1500,
+        useNativeDriver: false,
+      })
+    ]).start();
+
+    // Pulse animation for notifications
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+
+    // Update time every minute
+    const timeInterval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+
+    return () => clearInterval(timeInterval);
+  }, []);
 
   const handleCreateRescueDeal = () => {
     if (!dealDescription.trim() || !dealDiscount.trim() || !dealQuantity.trim()) {
@@ -68,52 +145,111 @@ export default function EmployeeDashboard() {
       aisle: ""
     });
 
-    // Trigger visual feedback
+    // Update employee stats
+    setEmployeeStats(prev => ({
+      ...prev,
+      weeklyImpact: prev.weeklyImpact + 15,
+      completedTasks: prev.completedTasks + 1,
+      currentStreak: prev.currentStreak + 1
+    }));
+
+    // Trigger visual feedback and celebration
     setRecentlyUpdated(true);
-    setTimeout(() => setRecentlyUpdated(false), 2000);
+    setShowCelebration(true);
+    Vibration.vibrate(100);
+    
+    // Animate progress bar
+    Animated.timing(progressAnim, {
+      toValue: (employeeStats.weeklyImpact + 15) / employeeStats.monthlyTarget,
+      duration: 1000,
+      useNativeDriver: false,
+    }).start();
+
+    setTimeout(() => {
+      setRecentlyUpdated(false);
+      setShowCelebration(false);
+    }, 3000);
     
     Alert.alert(
-      'Rescue Deal Created!', 
-      `${dealCategory} rescue deal has been published to customers`,
-      [{ text: 'OK', onPress: () => {
-        setModalVisible(false);
-        setDealDescription('');
-        setDealDiscount('');
-        setDealQuantity('');
-      }}]
+      '🎉 Rescue Deal Created!', 
+      `Great job! You've helped reduce waste and earn +15 sustainability points!`,
+      [{ 
+        text: 'Awesome!', 
+        onPress: () => {
+          setModalVisible(false);
+          setDealDescription('');
+          setDealDiscount('');
+          setDealQuantity('');
+        }
+      }]
     );
-  };
-
-  // Simulate some rescue deals being sold/donated (for demo purposes)
-  const simulateRescueDealSale = () => {
-    // In a real app, this would be triggered by customer purchases
-    // For now, we'll simulate it with random data
-    const customerNames = ['Alice Smith', 'Bob Johnson', 'Carol Williams', 'David Brown'];
-    const randomCustomer = customerNames[Math.floor(Math.random() * customerNames.length)];
-    const randomPrice = Math.floor(Math.random() * 50) + 10;
-    
-    // This would typically come from a purchase system
-    Alert.alert('Demo', `Simulated sale to ${randomCustomer} for $${randomPrice}`);
   };
 
   const handleQuickAction = (action: string) => {
     const actions = {
-      donation: 'Donation alert sent to local food banks',
-      sustainability: 'Weekly sustainability tip sent to all customers',
-      discount: 'Flash discount campaign activated for all rescue deals',
-      announcement: 'Store update published to customer app'
+      donation: { 
+        message: 'Donation alert sent to 3 local food banks',
+        points: 10
+      },
+      sustainability: { 
+        message: 'Eco-tip broadcasted to 2,847 customers',
+        points: 5
+      },
+      discount: { 
+        message: 'Flash discount activated! 73% customer engagement',
+        points: 15
+      },
+      announcement: { 
+        message: 'Store update sent to customer app',
+        points: 5
+      },
+      team: {
+        message: 'Team sustainability challenge initiated!',
+        points: 20
+      }
     };
     
-    if (action === 'discount') {
-      // Simulate a flash sale
-      simulateRescueDealSale();
-    } else {
-      Alert.alert('Action Completed!', actions[action as keyof typeof actions]);
+    const actionData = actions[action as keyof typeof actions];
+    setEmployeeStats(prev => ({
+      ...prev,
+      weeklyImpact: prev.weeklyImpact + actionData.points
+    }));
+    
+    setNotificationCount(prev => prev + 1);
+    Alert.alert('🌟 Action Completed!', 
+      `${actionData.message}\n\n+${actionData.points} sustainability points earned!`
+    );
+  };
+
+  const navigateToTab = (tab: string) => {
+    switch(tab) {
+      case 'analytics':
+        router.push('/analytics');
+        break;
+      case 'customers':
+        router.push('/customers');
+        break;
+      case 'tasks':
+        router.push('/tasks');
+        break;
+      default:
+        Alert.alert('Navigation', `Opening ${tab} section...`);
     }
   };
 
+  const getSustainabilityLevelColor = (level: number) => {
+    if (level >= 8) return '#10B981'; // Green
+    if (level >= 6) return '#F59E0B'; // Yellow
+    if (level >= 4) return '#EF4444'; // Orange
+    return '#6B7280'; // Gray
+  };
+
   const renderActivity = ({ item }: { item: any }) => (
-    <View style={[styles.activityItem, item.status === 'new' && styles.newActivity]}>
+    <Animated.View style={[
+      styles.activityItem, 
+      item.status === 'new' && styles.newActivity,
+      { opacity: fadeAnim }
+    ]}>
       <View style={styles.activityHeader}>
         <View style={[
           styles.activityIcon, 
@@ -131,28 +267,18 @@ export default function EmployeeDashboard() {
         </View>
         <View style={styles.activityImpact}>
           {'co2Saved' in item.impact && (
-            <View style={styles.impactBadge}>
+            <View style={[styles.impactBadge, { backgroundColor: '#ECFDF5' }]}>
               <Text style={styles.impactText}>🌱 {item.impact.co2Saved}kg CO₂</Text>
             </View>
           )}
           {'moneySaved' in item.impact && (
-            <View style={styles.impactBadge}>
+            <View style={[styles.impactBadge, { backgroundColor: '#FEF3C7' }]}>
               <Text style={styles.impactText}>💰 ${item.impact.moneySaved}</Text>
-            </View>
-          )}
-          {'itemCount' in item.impact && (
-            <View style={styles.impactBadge}>
-              <Text style={styles.impactText}>📦 {item.impact.itemCount} items</Text>
-            </View>
-          )}
-          {'dealCategory' in item.impact && (
-            <View style={styles.impactBadge}>
-              <Text style={styles.impactText}>🏪 {item.impact.dealCategory}</Text>
             </View>
           )}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 
   const getActivityColor = (type: string) => {
@@ -177,65 +303,118 @@ export default function EmployeeDashboard() {
     return icons[type as keyof typeof icons] || '📋';
   };
 
-  const navigateToTab = (tab: string) => {
-    // This would integrate with your router
-    Alert.alert('Navigation', `Navigate to ${tab} tab`);
-  };
-
   return (
     <SafeAreaView style={styles.container}>
+      {/* Celebration Animation */}
+      {showCelebration && (
+        <View style={styles.celebrationOverlay}>
+          <Text style={styles.celebrationText}>🎉 Great Job! 🌱</Text>
+        </View>
+      )}
 
-      <ScrollView style={styles.scrollContainer}>
-        {/* Enhanced Header with consistent styling */}
-        <View style={styles.header}>
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/* Enhanced Header with Live Stats */}
+        <LinearGradient
+          colors={['#047857', '#065F46', '#064E3B']}
+          style={styles.header}
+        >
           <View style={styles.headerContent}>
-            <View>
-              <Text style={styles.welcomeText}>Employee Portal</Text>
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+              <Text style={styles.welcomeText}>
+                Good {currentTime.getHours() < 12 ? 'Morning' : currentTime.getHours() < 18 ? 'Afternoon' : 'Evening'}! 👋
+              </Text>
               <Text style={styles.userName}>Sarah Johnson</Text>
-              <Text style={styles.userRole}>Environmental Coordinator</Text>
-            </View>
+              <Text style={styles.userRole}>Sustainability Champion • Level {employeeStats.sustainabilityLevel}</Text>
+              
+              {/* Live streak counter */}
+              <View style={styles.streakContainer}>
+                <Text style={styles.streakText}>🔥 {employeeStats.currentStreak} day streak</Text>
+                <View style={styles.badgeContainer}>
+                  {employeeStats.badges.map((badge, index) => (
+                    <Text key={index} style={styles.badge}>{badge}</Text>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+            
             
           </View>
-        </View>
 
-        {/* Key Metrics - Now using real-time data from context */}
-        <View style={styles.metricsContainer}>
+          {/* Progress Bar for Monthly Goal */}
+          <Animated.View style={styles.progressContainer}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressLabel}>Monthly Sustainability Target</Text>
+              <Text style={styles.progressValue}>
+                {employeeStats.weeklyImpact}/{employeeStats.monthlyTarget} points
+              </Text>
+            </View>
+            <View style={styles.progressBarContainer}>
+              <Animated.View 
+                style={[
+                  styles.progressBar,
+                  {
+                    width: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0%', '100%'],
+                    }),
+                  }
+                ]} 
+              />
+            </View>
+          </Animated.View>
+        </LinearGradient>
+
+        {/* Dynamic Key Metrics */}
+        <Animated.View style={[styles.metricsContainer, { opacity: fadeAnim }]}>
           <TouchableOpacity 
-            style={[styles.metricCard, recentlyUpdated && styles.metricCardUpdated]}
+            style={[
+              styles.metricCard, 
+              recentlyUpdated && styles.metricCardUpdated,
+              { backgroundColor: recentlyUpdated ? '#F0FDF4' : 'white' }
+            ]}
             onPress={() => navigateToTab('analytics')}
           >
+            <Text style={styles.metricIcon}>🏪</Text>
             <Text style={styles.metricValue}>{dashboardData.rescueDeals.total}</Text>
-            <Text style={styles.metricLabel}>Rescue Deals Created</Text>
-            <Text style={styles.metricDetail}>
-              {dashboardData.rescueDeals.sold} sold • {dashboardData.rescueDeals.donated} donated • {dashboardData.rescueDeals.pending} pending
-            </Text>
-            <Text style={styles.metricTrend}>↗ +{Math.round((dashboardData.rescueDeals.total / 50) * 100)}%</Text>
+            <Text style={styles.metricLabel}>Rescue Deals</Text>
+            <View style={styles.metricDetailsContainer}>
+              <Text style={styles.metricDetail}>
+                {dashboardData.rescueDeals.sold} sold • {dashboardData.rescueDeals.donated} donated
+              </Text>
+              <Text style={styles.metricTrend}>↗ +{Math.round((dashboardData.rescueDeals.total / 50) * 100)}%</Text>
+            </View>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.metricCard}
             onPress={() => navigateToTab('analytics')}
           >
+            <Text style={styles.metricIcon}>♻️</Text>
             <Text style={styles.metricValue}>{dashboardData.wasteReduction.percentage}%</Text>
-            <Text style={styles.metricLabel}>Waste Reduction</Text>
-            <Text style={styles.metricDetail}>{dashboardData.wasteReduction.totalKg}kg prevented</Text>
-            <Text style={styles.metricTrend}>↗ +5%</Text>
+            <Text style={styles.metricLabel}>Waste Prevented</Text>
+            <View style={styles.metricDetailsContainer}>
+              <Text style={styles.metricDetail}>{dashboardData.wasteReduction.totalKg}kg saved</Text>
+              <Text style={styles.metricTrend}>↗ +5%</Text>
+            </View>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.metricCard}
             onPress={() => navigateToTab('analytics')}
           >
+            <Text style={styles.metricIcon}>🌱</Text>
             <Text style={styles.metricValue}>{(dashboardData.wasteReduction.co2Saved / 1000).toFixed(1)}k</Text>
-            <Text style={styles.metricLabel}>kg CO₂ Saved</Text>
-            <Text style={styles.metricDetail}>Environmental impact</Text>
-            <Text style={styles.metricTrend}>↗ +15.7%</Text>
+            <Text style={styles.metricLabel}>CO₂ Saved</Text>
+            <View style={styles.metricDetailsContainer}>
+              <Text style={styles.metricDetail}>kg this month</Text>
+              <Text style={styles.metricTrend}>↗ +15.7%</Text>
+            </View>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
-        {/* Quick Actions for Store Operations */}
+        {/* Enhanced Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Text style={styles.sectionTitle}>⚡ Quick Impact Actions</Text>
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity 
               style={[styles.quickActionCard, { backgroundColor: '#047857' }]}
@@ -243,6 +422,7 @@ export default function EmployeeDashboard() {
             >
               <Text style={styles.quickActionIcon}>🏪</Text>
               <Text style={styles.quickActionText}>Create Rescue Deal</Text>
+              <Text style={styles.quickActionSubtext}>+15 points</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -251,6 +431,7 @@ export default function EmployeeDashboard() {
             >
               <Text style={styles.quickActionIcon}>🤝</Text>
               <Text style={styles.quickActionText}>Alert Food Banks</Text>
+              <Text style={styles.quickActionSubtext}>+10 points</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -259,6 +440,7 @@ export default function EmployeeDashboard() {
             >
               <Text style={styles.quickActionIcon}>🌱</Text>
               <Text style={styles.quickActionText}>Send Eco-Tip</Text>
+              <Text style={styles.quickActionSubtext}>+5 points</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -267,45 +449,89 @@ export default function EmployeeDashboard() {
             >
               <Text style={styles.quickActionIcon}>⚡</Text>
               <Text style={styles.quickActionText}>Flash Discount</Text>
+              <Text style={styles.quickActionSubtext}>+15 points</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.quickActionCard, { backgroundColor: '#EC4899' }]}
+              onPress={() => handleQuickAction('team')}
+            >
+              <Text style={styles.quickActionIcon}>👥</Text>
+              <Text style={styles.quickActionText}>Team Challenge</Text>
+              <Text style={styles.quickActionSubtext}>+20 points</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.quickActionCard, { backgroundColor: '#06B6D4' }]}
+              onPress={() => handleQuickAction('announcement')}
+            >
+              <Text style={styles.quickActionIcon}>📢</Text>
+              <Text style={styles.quickActionText}>Store Update</Text>
+              <Text style={styles.quickActionSubtext}>+5 points</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Live Store Activity - Now using real-time activities */}
+        {/* Personal Sustainability Dashboard */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Live Store Activity</Text>
-            <TouchableOpacity onPress={() => navigateToTab('analytics')}>
-              <Text style={styles.viewAllText}>View Analytics</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.activityFeed}>
-            <FlatList
-              data={activities}
-              renderItem={renderActivity}
-              keyExtractor={(item) => item.id.toString()}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              extraData={activities}
-            />
+          <Text style={styles.sectionTitle}>🏆 Your Sustainability Journey</Text>
+          <View style={styles.personalDashboard}>
+            <View style={styles.personalCard}>
+              <Text style={styles.personalCardTitle}>Daily Tasks</Text>
+              <View style={styles.taskProgress}>
+                <View style={styles.taskProgressBar}>
+                  <View 
+                    style={[
+                      styles.taskProgressFill,
+                      { width: `${(employeeStats.completedTasks / employeeStats.totalTasks) * 100}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.taskProgressText}>
+                  {employeeStats.completedTasks}/{employeeStats.totalTasks} completed
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.personalCard}>
+              <Text style={styles.personalCardTitle}>Sustainability Level</Text>
+              <View style={styles.levelContainer}>
+                <View style={[
+                  styles.levelIndicator,
+                  { backgroundColor: getSustainabilityLevelColor(employeeStats.sustainabilityLevel) }
+                ]}>
+                  <Text style={styles.levelText}>{employeeStats.sustainabilityLevel}</Text>
+                </View>
+                <Text style={styles.levelLabel}>Eco Champion</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* System Controls */}
+        
+
+        {/* Enhanced System Controls */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>System Controls</Text>
+          <Text style={styles.sectionTitle}>⚙️ Smart Controls</Text>
           <View style={styles.systemControls}>
             {Object.entries(systemSettings).map(([key, value]) => (
               <View key={key} style={styles.systemControl}>
-                <Text style={styles.systemLabel}>
-                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                </Text>
+                <View style={styles.systemControlLeft}>
+                  <Text style={styles.systemLabel}>
+                    {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                  </Text>
+                  <Text style={styles.systemSubLabel}>
+                    {getSystemDescription(key)}
+                  </Text>
+                </View>
                 <Switch
                   value={value}
-                  onValueChange={(newValue) => 
-                    setSystemSettings(prev => ({ ...prev, [key]: newValue }))
-                  }
+                  onValueChange={(newValue) => {
+                    setSystemSettings(prev => ({ ...prev, [key]: newValue }));
+                    if (newValue) {
+                      setEmployeeStats(prev => ({ ...prev, weeklyImpact: prev.weeklyImpact + 2 }));
+                    }
+                  }}
                   trackColor={{ false: '#E5E7EB', true: '#047857' }}
                   thumbColor={value ? '#FFFFFF' : '#F3F4F6'}
                 />
@@ -314,9 +540,9 @@ export default function EmployeeDashboard() {
           </View>
         </View>
 
-        {/* Management Tools */}
+        {/* Management Tools (without challenges) */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Management Tools</Text>
+          <Text style={styles.sectionTitle}>🛠️ Management Hub</Text>
           <View style={styles.toolsGrid}>
             <TouchableOpacity 
               style={styles.toolCard}
@@ -350,39 +576,60 @@ export default function EmployeeDashboard() {
               <Text style={styles.toolText}>Tasks</Text>
               <Text style={styles.toolSubtext}>Daily assignments</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.toolCard}
-              onPress={() => navigateToTab('challenges')}
-            >
-              <View style={[styles.toolIcon, { backgroundColor: '#DCFCE7' }]}>
-                <Text style={styles.toolIconText}>🎯</Text>
-              </View>
-              <Text style={styles.toolText}>Challenges</Text>
-              <Text style={styles.toolSubtext}>Sustainability campaigns</Text>
-            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Environmental Impact Summary - Now using real-time today's stats */}
+        {/* Today's Environmental Impact */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Environmental Impact</Text>
+          <Text style={styles.sectionTitle}>🌍 Today's Environmental Impact</Text>
           <View style={styles.impactSummary}>
             <View style={styles.impactMetric}>
               <Text style={styles.impactIcon}>🌱</Text>
               <Text style={styles.impactValue}>{todaysStats.co2Saved} kg</Text>
               <Text style={styles.impactLabel}>CO₂ Saved Today</Text>
+              <Text style={styles.impactGrowth}>+12% vs yesterday</Text>
             </View>
             <View style={styles.impactMetric}>
               <Text style={styles.impactIcon}>♻️</Text>
               <Text style={styles.impactValue}>{todaysStats.wastePrevented} kg</Text>
               <Text style={styles.impactLabel}>Waste Prevented</Text>
+              <Text style={styles.impactGrowth}>+8% vs yesterday</Text>
             </View>
             <View style={styles.impactMetric}>
               <Text style={styles.impactIcon}>💰</Text>
               <Text style={styles.impactValue}>${todaysStats.customerSavings}</Text>
               <Text style={styles.impactLabel}>Customer Savings</Text>
+              <Text style={styles.impactGrowth}>+15% vs yesterday</Text>
             </View>
+          </View>
+        </View>
+
+        {/* Team Leaderboard */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏆 Team Sustainability Leaders</Text>
+          <View style={styles.leaderboard}>
+            {[
+              { name: 'Sarah Johnson', points: 247, rank: 1, trend: '↗️' },
+              { name: 'Mike Chen', points: 234, rank: 2, trend: '↗️' },
+              { name: 'Lisa Rodriguez', points: 198, rank: 3, trend: '↘️' },
+              { name: 'David Kim', points: 176, rank: 4, trend: '➡️' }
+            ].map((member, index) => (
+              <View key={index} style={[
+                styles.leaderboardItem,
+                index === 0 && styles.leaderboardFirst
+              ]}>
+                <View style={styles.leaderboardLeft}>
+                  <Text style={styles.leaderboardRank}>#{member.rank}</Text>
+                  <Text style={styles.leaderboardName}>
+                    {member.name} {index === 0 ? '(You)' : ''}
+                  </Text>
+                </View>
+                <View style={styles.leaderboardRight}>
+                  <Text style={styles.leaderboardPoints}>{member.points} pts</Text>
+                  <Text style={styles.leaderboardTrend}>{member.trend}</Text>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -395,7 +642,10 @@ export default function EmployeeDashboard() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Create Rescue Deal</Text>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>🏪 Create Rescue Deal</Text>
+                <Text style={styles.modalSubtitle}>Help reduce waste and earn sustainability points!</Text>
+              </View>
               
               <Text style={styles.inputLabel}>Category</Text>
               <View style={styles.categorySelector}>
@@ -445,6 +695,10 @@ export default function EmployeeDashboard() {
                 onChangeText={setDealQuantity}
               />
               
+              <View style={styles.modalReward}>
+                <Text style={styles.modalRewardText}>🌟 You'll earn +15 sustainability points!</Text>
+              </View>
+              
               <View style={styles.modalButtons}>
                 <TouchableOpacity 
                   style={[styles.modalButton, styles.cancelButton]}
@@ -466,9 +720,21 @@ export default function EmployeeDashboard() {
       </ScrollView>
     </SafeAreaView>
   );
+
+  function getSystemDescription(key: string): string {
+    const descriptions = {
+      autoRescueDeals: 'Automatically suggest rescue deals',
+      donationAlerts: 'Alert food banks of surplus',
+      customerNotifications: 'Notify customers of deals',
+      peakHourOptimization: 'Optimize during busy hours',
+      sustainabilityReports: 'Generate eco reports',
+      realTimeTracking: 'Track impact in real-time',
+      teamCollaboration: 'Enable team features'
+    };
+    return descriptions[key as keyof typeof descriptions] || '';
+  }
 }
 
-// Styles remain the same as original
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -477,16 +743,38 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flex: 1,
   },
+  celebrationOverlay: {
+    position: 'absolute',
+    top: height * 0.4,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    alignItems: 'center',
+  },
+  celebrationText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#047857',
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
   header: {
-    backgroundColor: '#047857',
     paddingTop: 50,
-    paddingBottom: 20,
+    paddingBottom: 25,
     paddingHorizontal: 20,
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 20,
   },
   welcomeText: {
     fontSize: 16,
@@ -494,7 +782,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   userName: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: 'white',
     marginBottom: 4,
@@ -502,6 +790,24 @@ const styles = StyleSheet.create({
   userRole: {
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 12,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  streakText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '600',
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  badge: {
+    fontSize: 16,
   },
   headerActions: {
     flexDirection: 'row',
@@ -510,9 +816,9 @@ const styles = StyleSheet.create({
   },
   notificationBadge: {
     backgroundColor: '#EF4444',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    borderRadius: 16,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -523,14 +829,44 @@ const styles = StyleSheet.create({
   },
   analyticsButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 8,
-    width: 32,
-    height: 32,
+    borderRadius: 10,
+    width: 36,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
   },
   analyticsButtonText: {
-    fontSize: 16,
+    fontSize: 18,
+  },
+  progressContainer: {
+    marginTop: 10,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressLabel: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
+  },
+  progressValue: {
+    fontSize: 14,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  progressBarContainer: {
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 4,
   },
   metricsContainer: {
     flexDirection: 'row',
@@ -540,52 +876,67 @@ const styles = StyleSheet.create({
   metricCard: {
     flex: 1,
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   metricCardUpdated: {
-    backgroundColor: '#F0FDF4',
     borderWidth: 2,
     borderColor: '#10B981',
     shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  metricIcon: {
+    fontSize: 32,
+    marginBottom: 8,
   },
   metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: '#047857',
     marginBottom: 4,
   },
   metricLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
+    fontSize: 13,
+    color: '#374151',
+    marginBottom: 8,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  metricDetailsContainer: {
+    alignItems: 'center',
+    gap: 4,
   },
   metricDetail: {
-    fontSize: 10,
-    color: '#9CA3AF',
-    marginBottom: 4,
+    fontSize: 11,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   metricTrend: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#10B981',
-    fontWeight: '600',
+    fontWeight: '700',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
   section: {
     padding: 16,
     paddingTop: 0,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '800',
     color: '#1F2937',
     marginBottom: 16,
   },
@@ -598,7 +949,7 @@ const styles = StyleSheet.create({
   viewAllText: {
     color: '#047857',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   quickActionsGrid: {
     flexDirection: 'row',
@@ -607,34 +958,103 @@ const styles = StyleSheet.create({
   },
   quickActionCard: {
     width: (width - 56) / 2,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 8,
   },
   quickActionIcon: {
-    fontSize: 24,
+    fontSize: 28,
     marginBottom: 8,
   },
   quickActionText: {
     color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     textAlign: 'center',
+    marginBottom: 4,
+  },
+  quickActionSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  personalDashboard: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  personalCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  personalCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  taskProgress: {
+    alignItems: 'center',
+  },
+  taskProgressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  taskProgressFill: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 4,
+  },
+  taskProgressText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  levelContainer: {
+    alignItems: 'center',
+  },
+  levelIndicator: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  levelText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  levelLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
   },
   activityFeed: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   activityItem: {
     paddingVertical: 12,
@@ -652,29 +1072,30 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   activityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   activityIconText: {
-    fontSize: 14,
+    fontSize: 16,
     color: 'white',
   },
   activityContent: {
     flex: 1,
   },
   activityCustomer: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#1F2937',
   },
   activityAction: {
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
+    fontWeight: '500',
   },
   activityDetails: {
     fontSize: 11,
@@ -690,39 +1111,46 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   impactBadge: {
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginBottom: 3,
   },
   impactText: {
     fontSize: 9,
     color: '#047857',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   systemControls: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   systemControl: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+  },
+  systemControlLeft: {
+    flex: 1,
   },
   systemLabel: {
     fontSize: 14,
     color: '#374151',
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  systemSubLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   },
   toolsGrid: {
     flexDirection: 'row',
@@ -732,31 +1160,31 @@ const styles = StyleSheet.create({
   toolCard: {
     width: (width - 56) / 2,
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   toolIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   toolIconText: {
-    fontSize: 20,
+    fontSize: 24,
   },
   toolText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   toolSubtext: {
     fontSize: 11,
@@ -765,25 +1193,25 @@ const styles = StyleSheet.create({
   },
   impactSummary: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   impactMetric: {
     alignItems: 'center',
   },
   impactIcon: {
-    fontSize: 24,
+    fontSize: 28,
     marginBottom: 8,
   },
   impactValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 4,
@@ -792,43 +1220,112 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#6B7280',
     textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  // Modal Styles
+  impactGrowth: {
+    fontSize: 9,
+    color: '#10B981',
+    fontWeight: '700',
+  },
+  leaderboard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  leaderboardItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  leaderboardFirst: {
+    backgroundColor: '#FEF3C7',
+  },
+  leaderboardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  leaderboardRank: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#F59E0B',
+    width: 30,
+  },
+  leaderboardName: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '600',
+  },
+  leaderboardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  leaderboardPoints: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#047857',
+  },
+  leaderboardTrend: {
+    fontSize: 16,
+  },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 20,
+    padding: 24,
     width: width - 32,
-    maxHeight: '80%',
+    maxHeight: '85%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
     textAlign: 'center',
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
   },
   categorySelector: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   categoryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -840,7 +1337,7 @@ const styles = StyleSheet.create({
   categoryButtonText: {
     fontSize: 12,
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   categoryButtonTextActive: {
     color: 'white',
@@ -848,25 +1345,36 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 20,
     backgroundColor: '#F9FAFB',
   },
   textArea: {
-    height: 80,
+    height: 90,
     textAlignVertical: 'top',
+  },
+  modalReward: {
+    backgroundColor: '#F0FDF4',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  modalRewardText: {
+    fontSize: 14,
+    color: '#047857',
+    fontWeight: '600',
   },
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 8,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
   },
   cancelButton: {
@@ -877,10 +1385,10 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#6B7280',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   createButtonText: {
     color: 'white',
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
