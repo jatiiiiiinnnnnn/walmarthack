@@ -486,6 +486,14 @@ export default function CartTab() {
     Alert.alert('Promo Applied! 🎉', foundPromo.description);
   }, [promoCodes, promoCode]);
 
+
+  const handleCloseReceipt = () => {
+  setShowReceiptModal(false);
+  setDigitalReceipt(null);
+  clearCart();
+  setAppliedDiscounts([]);
+  setPromoCode('');
+};
   // Payment processing
   const processPayment = useCallback(async () => {
     setPaymentProcessing(true);
@@ -546,15 +554,25 @@ export default function CartTab() {
       }
     };
 
+    setDigitalReceipt(receipt);
+    setShowReceiptModal(true);
+
     addOrder(newOrder);
     setUserEcoPoints(prev => prev + ecoPoints);
-    setDigitalReceipt(receipt);
+    
+
     setPaymentProcessing(false);
     setShowPaymentModal(false);
-    setShowReceiptModal(true);
-    clearCart();
-    setAppliedDiscounts([]);
-    setPromoCode('');
+
+    
+    // clearCart();
+    // setAppliedDiscounts([]);
+    // setPromoCode('');
+    // setTimeout(() => {
+    //     clearCart();
+    //     setAppliedDiscounts([]);
+    //     setPromoCode('');
+    // }, 500);
     
     processingAnimation.stopAnimation();
     processingAnimation.setValue(0);
@@ -565,7 +583,9 @@ export default function CartTab() {
       Alert.alert('Empty Cart', 'Please add items to your cart before proceeding.');
       return;
     }
+    setDigitalReceipt(null);
     setShowPaymentModal(true);
+    // setShowReceiptModal(true);
   }, [localCartItems]);
 
   const downloadReceipt = useCallback(async () => {
@@ -957,7 +977,10 @@ Thank you for shopping sustainably!
     <Modal visible={showReceiptModal} animationType="slide" presentationStyle="formSheet">
       <SafeAreaView style={styles.receiptModalContainer}>
         <View style={styles.receiptHeader}>
-          <TouchableOpacity onPress={() => setShowReceiptModal(false)}>
+          {/* <TouchableOpacity onPress={() => setShowReceiptModal(false)}>
+            <Text style={styles.receiptCloseButton}>✕</Text>
+          </TouchableOpacity> */}
+          <TouchableOpacity onPress={handleCloseReceipt}>
             <Text style={styles.receiptCloseButton}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.receiptTitle}>Digital Receipt</Text>
