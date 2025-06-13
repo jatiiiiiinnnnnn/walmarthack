@@ -1,5 +1,5 @@
-// app/(customer)/(tabs)/challenges.tsx - Walmart-Trackable Sustainability Challenges
-import React, { useEffect, useState } from 'react';
+// app/(customer)/(tabs)/challenges.tsx - Fixed Walmart-Trackable Sustainability Challenges
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -178,8 +178,8 @@ const activeWalmartChallenges = [
 ];
 
 export default function ChallengesTab() {
+  // Simplified state management - single modal state
   const [selectedChallenge, setSelectedChallenge] = useState<any>(null);
-  const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   const [liveStats, setLiveStats] = useState(walmartCommunityStats);
   const [aiChallenges, setAiChallenges] = useState<any[]>([]);
@@ -187,7 +187,10 @@ export default function ChallengesTab() {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationData, setNotificationData] = useState<any>(null);
-  const [slideAnimation] = useState(new Animated.Value(-100));
+  const [isModalOpening, setIsModalOpening] = useState(false);
+  
+  const slideAnimation = useRef(new Animated.Value(-100)).current;
+  const lastClickTime = useRef(0);
 
   useEffect(() => {
     generateWalmartSmartChallenges();
@@ -241,10 +244,11 @@ export default function ChallengesTab() {
     }
   };
 
-  const showJoinNotification = (challenge: any) => {
+  const showJoinNotification = useCallback((challenge: any) => {
     setNotificationData(challenge);
     setShowNotification(true);
     
+    slideAnimation.setValue(-100);
     Animated.sequence([
       Animated.timing(slideAnimation, {
         toValue: 0,
@@ -259,16 +263,46 @@ export default function ChallengesTab() {
       })
     ]).start(() => {
       setShowNotification(false);
+      setNotificationData(null);
     });
-  };
+  }, [slideAnimation]);
 
-  const joinChallenge = (challenge: any) => {
-    showJoinNotification(challenge);
-    setShowChallengeModal(false);
+  // Debounced challenge selection with proper state management
+  const handleChallengePress = useCallback((challenge: any) => {
+    const now = Date.now();
+    
+    // Debounce rapid clicks
+    if (now - lastClickTime.current < 500) {
+      return;
+    }
+    lastClickTime.current = now;
+
+    // Prevent multiple modals
+    if (selectedChallenge || isModalOpening) {
+      return;
+    }
+
+    setIsModalOpening(true);
+    setSelectedChallenge(challenge);
+  }, [selectedChallenge, isModalOpening]);
+
+  // Clean modal close
+  const handleModalClose = useCallback(() => {
+    setSelectedChallenge(null);
+    setIsModalOpening(false);
+  }, []);
+
+  const joinChallenge = useCallback((challenge: any) => {
+    handleModalClose();
+    // Small delay to ensure modal closes before notification
+    setTimeout(() => {
+      showJoinNotification(challenge);
+    }, 100);
     console.log(`Joined Walmart trackable challenge: ${challenge.title}`);
-  };
+  }, [handleModalClose, showJoinNotification]);
 
-  const getDifficultyColor = (difficulty: string) => {
+  // Memoized functions to prevent re-renders
+  const getDifficultyColor = useMemo(() => (difficulty: string) => {
     switch (difficulty) {
       case 'Easy': return '#10B981';
       case 'Medium': return '#F59E0B';
@@ -277,9 +311,9 @@ export default function ChallengesTab() {
       case 'Community': return '#3B82F6';
       default: return '#6B7280';
     }
-  };
+  }, []);
 
-  const getCategoryIcon = (category: string) => {
+  const getCategoryIcon = useMemo(() => (category: string) => {
     switch (category) {
       case 'Sustainable Shopping': return '🛒';
       case 'Packaging Reduction': return '♻️';
@@ -291,9 +325,10 @@ export default function ChallengesTab() {
       case 'Trip Optimization': return '🚗';
       default: return '🎯';
     }
-  };
+  }, []);
 
-  const JoinNotification = () => {
+  // Memoized components to prevent unnecessary re-renders
+  const JoinNotification = React.memo(() => {
     if (!showNotification || !notificationData) return null;
 
     return (
@@ -327,9 +362,9 @@ export default function ChallengesTab() {
         </View>
       </Animated.View>
     );
-  };
+  });
 
-  const WalmartStatsCard = () => (
+  const WalmartStatsCard = React.memo(() => (
     <View style={styles.liveStatsCard}>
       <View style={styles.statsHeader}>
         <Text style={styles.liveStatsTitle}>Live Walmart Sustainability</Text>
@@ -352,15 +387,14 @@ export default function ChallengesTab() {
         <Text style={styles.liveText}>Real-time Walmart data</Text>
       </View>
     </View>
-  );
+  ));
 
-  const WalmartSmartCard = ({ challenge }: { challenge: any }) => (
+  const WalmartSmartCard = React.memo(({ challenge }: { challenge: any }) => (
     <TouchableOpacity 
       style={styles.smartCard}
-      onPress={() => {
-        setSelectedChallenge(challenge);
-        setShowChallengeModal(true);
-      }}
+      onPress={() => handleChallengePress(challenge)}
+      activeOpacity={0.8}
+      disabled={isModalOpening}
     >
       <View style={styles.smartCardHeader}>
         <Text style={styles.smartCardIcon}>{getCategoryIcon(challenge.category)}</Text>
@@ -371,7 +405,6 @@ export default function ChallengesTab() {
       <Text style={styles.smartCardTitle}>{challenge.title}</Text>
       <Text style={styles.smartCardDesc}>{challenge.description}</Text>
       
-      {/* Walmart Tracking Info */}
       <View style={styles.trackingInfo}>
         <Text style={styles.trackingLabel}>📊 Tracking:</Text>
         <Text style={styles.trackingMethod}>{challenge.trackingMethod}</Text>
@@ -398,15 +431,14 @@ export default function ChallengesTab() {
         </View>
       )}
     </TouchableOpacity>
-  );
+  ));
 
-  const WalmartChallengeCard = ({ challenge, isAvailable = false }: { challenge: any, isAvailable?: boolean }) => (
+  const WalmartChallengeCard = React.memo(({ challenge, isAvailable = false }: { challenge: any, isAvailable?: boolean }) => (
     <TouchableOpacity 
       style={[styles.challengeCard, challenge.trending && styles.trendingCard]}
-      onPress={() => {
-        setSelectedChallenge(challenge);
-        setShowChallengeModal(true);
-      }}
+      onPress={() => handleChallengePress(challenge)}
+      activeOpacity={0.8}
+      disabled={isModalOpening}
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardHeaderLeft}>
@@ -435,7 +467,6 @@ export default function ChallengesTab() {
 
       <Text style={styles.cardDescription}>{challenge.description}</Text>
 
-      {/* Walmart Benefit */}
       <View style={styles.walmartBenefitBox}>
         <Text style={styles.walmartBenefitLabel}>🛒 Walmart Benefit:</Text>
         <Text style={styles.walmartBenefitText}>{challenge.walmartBenefit}</Text>
@@ -488,103 +519,7 @@ export default function ChallengesTab() {
         </View>
       )}
     </TouchableOpacity>
-  );
-
-  const WalmartChallengeModal = () => (
-    <Modal visible={showChallengeModal} animationType="slide" presentationStyle="formSheet">
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={() => setShowChallengeModal(false)}>
-            <Text style={styles.modalBackButton}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>Walmart Challenge</Text>
-          <TouchableOpacity>
-            <Text style={styles.shareButton}>Share</Text>
-          </TouchableOpacity>
-        </View>
-
-        {selectedChallenge && (
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.modalChallengeHeader}>
-              <Text style={styles.modalChallengeIcon}>
-                {getCategoryIcon(selectedChallenge.category)}
-              </Text>
-              <Text style={styles.modalChallengeTitle}>{selectedChallenge.title}</Text>
-              <View style={styles.modalBadgesRow}>
-                <View style={[
-                  styles.modalDifficultyBadge, 
-                  { backgroundColor: getDifficultyColor(selectedChallenge.difficulty) }
-                ]}>
-                  <Text style={styles.modalDifficultyText}>{selectedChallenge.difficulty}</Text>
-                </View>
-                <View style={styles.modalWalmartBadge}>
-                  <Text style={styles.modalWalmartBadgeText}>🛒 Walmart Tracked</Text>
-                </View>
-              </View>
-            </View>
-
-            <Text style={styles.modalDescription}>{selectedChallenge.description}</Text>
-
-            {/* Walmart Tracking Explanation */}
-            <View style={styles.trackingSection}>
-              <Text style={styles.sectionTitle}>How Walmart Tracks This</Text>
-              <View style={styles.trackingCard}>
-                <Text style={styles.trackingExplanation}>{selectedChallenge.trackingMethod}</Text>
-                <Text style={styles.trackingBenefit}>
-                  <Text style={styles.trackingBenefitLabel}>Business Impact: </Text>
-                  {selectedChallenge.walmartBenefit}
-                </Text>
-              </View>
-            </View>
-
-            {/* AI Tips Section */}
-            {selectedChallenge.aiTips && (
-              <View style={styles.aiTipsSection}>
-                <Text style={styles.sectionTitle}>AI-Powered Tips</Text>
-                <View style={styles.aiTipsContainer}>
-                  {selectedChallenge.aiTips.map((tip: string, index: number) => (
-                    <View key={index} style={styles.aiTipItem}>
-                      <Text style={styles.aiTipBullet}>💡</Text>
-                      <Text style={styles.aiTipText}>{tip}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Impact Section */}
-            {selectedChallenge.impactValue && (
-              <View style={styles.impactSection}>
-                <Text style={styles.sectionTitle}>🌍 Environmental Impact</Text>
-                <View style={styles.impactCard}>
-                  <Text style={styles.impactNumber}>{selectedChallenge.impactValue}</Text>
-                  <Text style={styles.impactUnit}>{selectedChallenge.impactUnit}</Text>
-                  <Text style={styles.impactLabel}>You'll help save</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Action Button */}
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => joinChallenge(selectedChallenge)}
-            >
-              <Text style={styles.actionButtonText}>
-                {selectedChallenge.progress !== undefined ? 'Continue Walmart Challenge' : 'Join Walmart Challenge'}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.disclaimerBox}>
-              <Text style={styles.disclaimerText}>
-                🛒 This challenge will automatically track your Walmart purchases and activities. 
-                Progress updates in real-time through your Walmart account.
-              </Text>
-            </View>
-          </ScrollView>
-        )}
-      </SafeAreaView>
-    </Modal>
-  );
+  ));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -666,7 +601,106 @@ export default function ChallengesTab() {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      <WalmartChallengeModal />
+      {/* Simplified Modal - No animation conflicts */}
+      <Modal 
+        visible={!!selectedChallenge} 
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleModalClose}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={handleModalClose} activeOpacity={0.7}>
+              <Text style={styles.modalBackButton}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Walmart Challenge</Text>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={styles.shareButton}>Share</Text>
+            </TouchableOpacity>
+          </View>
+
+          {selectedChallenge && (
+            <ScrollView 
+              style={styles.modalContent} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
+            >
+              <View style={styles.modalChallengeHeader}>
+                <Text style={styles.modalChallengeIcon}>
+                  {getCategoryIcon(selectedChallenge.category)}
+                </Text>
+                <Text style={styles.modalChallengeTitle}>{selectedChallenge.title}</Text>
+                <View style={styles.modalBadgesRow}>
+                  <View style={[
+                    styles.modalDifficultyBadge, 
+                    { backgroundColor: getDifficultyColor(selectedChallenge.difficulty) }
+                  ]}>
+                    <Text style={styles.modalDifficultyText}>{selectedChallenge.difficulty}</Text>
+                  </View>
+                  <View style={styles.modalWalmartBadge}>
+                    <Text style={styles.modalWalmartBadgeText}>🛒 Walmart Tracked</Text>
+                  </View>
+                </View>
+              </View>
+
+              <Text style={styles.modalDescription}>{selectedChallenge.description}</Text>
+
+              <View style={styles.trackingSection}>
+                <Text style={styles.sectionTitle}>How Walmart Tracks This</Text>
+                <View style={styles.trackingCard}>
+                  <Text style={styles.trackingExplanation}>{selectedChallenge.trackingMethod}</Text>
+                  <Text style={styles.trackingBenefit}>
+                    <Text style={styles.trackingBenefitLabel}>Business Impact: </Text>
+                    {selectedChallenge.walmartBenefit}
+                  </Text>
+                </View>
+              </View>
+
+              {selectedChallenge.aiTips && (
+                <View style={styles.aiTipsSection}>
+                  <Text style={styles.sectionTitle}>AI-Powered Tips</Text>
+                  <View style={styles.aiTipsContainer}>
+                    {selectedChallenge.aiTips.map((tip: string, index: number) => (
+                      <View key={index} style={styles.aiTipItem}>
+                        <Text style={styles.aiTipBullet}>💡</Text>
+                        <Text style={styles.aiTipText}>{tip}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {selectedChallenge.impactValue && (
+                <View style={styles.impactSection}>
+                  <Text style={styles.sectionTitle}>🌍 Environmental Impact</Text>
+                  <View style={styles.impactCard}>
+                    <Text style={styles.impactNumber}>{selectedChallenge.impactValue}</Text>
+                    <Text style={styles.impactUnit}>{selectedChallenge.impactUnit}</Text>
+                    <Text style={styles.impactLabel}>You'll help save</Text>
+                  </View>
+                </View>
+              )}
+
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => joinChallenge(selectedChallenge)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionButtonText}>
+                  {selectedChallenge.progress !== undefined ? 'Continue Walmart Challenge' : 'Join Walmart Challenge'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.disclaimerBox}>
+                <Text style={styles.disclaimerText}>
+                  🛒 This challenge will automatically track your Walmart purchases and activities. 
+                  Progress updates in real-time through your Walmart account.
+                </Text>
+              </View>
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }

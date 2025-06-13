@@ -1,4 +1,4 @@
-// app/(customer)/(tabs)/cart.tsx - Enhanced Cart with AI Optimizer & Payment Gateway
+// app/(customer)/(tabs)/cart.tsx - Enhanced Cart with AI Optimizer & Payment Gateway + Swap Feature
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -64,7 +64,20 @@ interface DigitalReceipt {
   };
 }
 
-
+// Extended CartItem interface to include ecoAlternative
+interface ExtendedCartItem extends CartItem {
+  ecoAlternative?: {
+    id: string;
+    name: string;
+    brand: string;
+    price: number;
+    priceIncrease: number;
+    co2Impact: number;
+    ecoPoints: number;
+    features: string[];
+    sustainabilityScore: number;
+  };
+}
 
 export default function CartTab() {
   const { 
@@ -79,7 +92,7 @@ export default function CartTab() {
   } = useAppData();
 
   const [showSwapModal, setShowSwapModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<CartItem | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ExtendedCartItem | null>(null);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [appliedDiscounts, setAppliedDiscounts] = useState<string[]>([]);
   const [promoCode, setPromoCode] = useState('');
@@ -98,6 +111,7 @@ export default function CartTab() {
   const [digitalReceipt, setDigitalReceipt] = useState<DigitalReceipt | null>(null);
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [processingAnimation] = useState(new Animated.Value(0));
+  const [swappedItems, setSwappedItems] = useState<{[key: string]: ExtendedCartItem}>({});
 
   // FIXED: Memoize static data to prevent recreation on every render
   const ecoDiscounts: EcoDiscount[] = useMemo(() => [
@@ -153,26 +167,192 @@ export default function CartTab() {
   ], []);
 
   // FIXED: Memoize cart items transformation to prevent unnecessary recalculations
-  const localCartItems: CartItem[] = useMemo(() => 
-    cartItems.map(item => ({
-      id: item.id,
-      name: item.name,
-      brand: item.brand || 'Unknown',
-      price: item.price,
-      originalPrice: item.originalPrice,
-      quantity: item.quantity || 1,
-      co2Impact: item.co2Impact || 0,
-      sustainabilityScore: item.sustainabilityScore || 5,
-      category: item.category,
-      isEcoFriendly: item.isEcoFriendly || false,
-      ecoPoints: item.ecoPoints || 0,
-      aisle: item.aisle || 'Unknown',
-      image: item.image,
-      isRescueDeal: item.isRescueDeal || false,
-      isEcoAlternative: item.isEcoAlternative || false,
-      isScanned: item.isScanned || false
-    }))
-  , [cartItems]);
+  const localCartItems: ExtendedCartItem[] = useMemo(() => {
+    const baseItems = cartItems.map(item => {
+      // Check if this item has been swapped
+      const swappedItem = swappedItems[item.id];
+      if (swappedItem) {
+        return swappedItem;
+      }
+
+      return {
+        id: item.id,
+        name: item.name,
+        brand: item.brand || 'Unknown',
+        price: item.price,
+        originalPrice: item.originalPrice,
+        quantity: item.quantity || 1,
+        co2Impact: item.co2Impact || 0,
+        sustainabilityScore: item.sustainabilityScore || 5,
+        category: item.category,
+        isEcoFriendly: item.isEcoFriendly || false,
+        ecoPoints: item.ecoPoints || 0,
+        aisle: item.aisle || 'Unknown',
+        image: item.image,
+        isRescueDeal: item.isRescueDeal || false,
+        isEcoAlternative: item.isEcoAlternative || false,
+        isScanned: item.isScanned || false,
+        // Add eco alternatives for various product categories
+        ecoAlternative: !item.isEcoFriendly ? (() => {
+          const itemName = item.name.toLowerCase();
+          
+          // Plastic items
+          if (itemName.includes('plastic')) {
+            return {
+              id: item.id + '_alt',
+              name: item.name.replace(/plastic/gi, 'Eco-Friendly'),
+              brand: 'EcoFlow',
+              price: Math.round(item.price * 1.2 * 100) / 100,
+              priceIncrease: Math.round(item.price * 0.2 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.3 * 100) / 100,
+              ecoPoints: 25,
+              sustainabilityScore: 9.2,
+              features: ['Reusable', 'BPA-free', 'Biodegradable', 'Sustainable']
+            };
+          }
+          
+          // Detergent/cleaning products
+          if (itemName.includes('detergent') || itemName.includes('cleaner')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Concentrated Eco Detergent',
+              brand: 'GreenClean',
+              price: Math.round(item.price * 0.85 * 100) / 100,
+              priceIncrease: Math.round(item.price * -0.15 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.4 * 100) / 100,
+              ecoPoints: 15,
+              sustainabilityScore: 8.5,
+              features: ['Biodegradable', 'Plant-based', 'Concentrated formula']
+            };
+          }
+          
+          // Pasta and grain products
+          if (itemName.includes('pasta') || itemName.includes('spaghetti') || itemName.includes('macaroni')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Organic Whole Wheat Pasta (1 lb)',
+              brand: 'Earth\'s Best',
+              price: Math.round(item.price * 1.15 * 100) / 100, // Fix floating point precision
+              priceIncrease: Math.round(item.price * 0.15 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.6 * 100) / 100,
+              ecoPoints: 12,
+              sustainabilityScore: 8.7,
+              features: ['Organic', 'Whole grain', 'Non-GMO', 'Sustainable farming']
+            };
+          }
+          
+          // Rice and grains
+          if (itemName.includes('rice') || itemName.includes('quinoa') || itemName.includes('grain')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Organic ' + item.name,
+              brand: 'Green Valley',
+              price: Math.round(item.price * 1.25 * 100) / 100,
+              priceIncrease: Math.round(item.price * 0.25 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.5 * 100) / 100,
+              ecoPoints: 18,
+              sustainabilityScore: 9.1,
+              features: ['Certified organic', 'Fair trade', 'Carbon neutral', 'Local sourcing']
+            };
+          }
+          
+          // Meat products
+          if (itemName.includes('beef') || itemName.includes('chicken') || itemName.includes('pork')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Grass-Fed Organic ' + item.name,
+              brand: 'Pure Pastures',
+              price: Math.round(item.price * 1.4 * 100) / 100,
+              priceIncrease: Math.round(item.price * 0.4 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.7 * 100) / 100,
+              ecoPoints: 20,
+              sustainabilityScore: 8.3,
+              features: ['Grass-fed', 'No antibiotics', 'Humane treatment', 'Local farm']
+            };
+          }
+          
+          // Dairy products
+          if (itemName.includes('milk') || itemName.includes('cheese') || itemName.includes('yogurt')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Organic ' + item.name,
+              brand: 'Green Meadows',
+              price: Math.round(item.price * 1.3 * 100) / 100,
+              priceIncrease: Math.round(item.price * 0.3 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.65 * 100) / 100,
+              ecoPoints: 16,
+              sustainabilityScore: 8.6,
+              features: ['Organic', 'Hormone-free', 'Local dairy', 'Sustainable packaging']
+            };
+          }
+          
+          // Bread and baked goods
+          if (itemName.includes('bread') || itemName.includes('bagel') || itemName.includes('muffin')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Organic Whole Grain ' + item.name,
+              brand: 'Artisan Bakery',
+              price: Math.round(item.price * 1.2 * 100) / 100,
+              priceIncrease: Math.round(item.price * 0.2 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.55 * 100) / 100,
+              ecoPoints: 14,
+              sustainabilityScore: 8.4,
+              features: ['Organic flour', 'No preservatives', 'Local ingredients', 'Recyclable packaging']
+            };
+          }
+          
+          // Canned goods
+          if (itemName.includes('canned') || itemName.includes('sauce') || itemName.includes('soup')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Organic ' + item.name,
+              brand: 'Nature\'s Choice',
+              price: Math.round(item.price * 1.1 * 100) / 100,
+              priceIncrease: Math.round(item.price * 0.1 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.6 * 100) / 100,
+              ecoPoints: 10,
+              sustainabilityScore: 8.2,
+              features: ['Organic ingredients', 'BPA-free can', 'No preservatives', 'Recyclable']
+            };
+          }
+          
+          // Snacks and processed foods
+          if (itemName.includes('chips') || itemName.includes('crackers') || itemName.includes('cookies')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Organic ' + item.name,
+              brand: 'Healthy Harvest',
+              price: Math.round(item.price * 1.25 * 100) / 100,
+              priceIncrease: Math.round(item.price * 0.25 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.5 * 100) / 100,
+              ecoPoints: 12,
+              sustainabilityScore: 7.8,
+              features: ['Organic', 'Non-GMO', 'No artificial flavors', 'Compostable packaging']
+            };
+          }
+          
+          // Beverages
+          if (itemName.includes('soda') || itemName.includes('juice') || itemName.includes('water')) {
+            return {
+              id: item.id + '_alt',
+              name: 'Organic ' + item.name.replace(/soda/gi, 'sparkling water'),
+              brand: 'Pure Spring',
+              price: Math.round(item.price * 0.9 * 100) / 100,
+              priceIncrease: Math.round(item.price * -0.1 * 100) / 100,
+              co2Impact: Math.round((item.co2Impact || 0) * 0.3 * 100) / 100,
+              ecoPoints: 22,
+              sustainabilityScore: 9.0,
+              features: ['Organic', 'Glass bottle', 'Local source', 'Carbon neutral']
+            };
+          }
+          
+          return undefined;
+        })() : undefined
+      };
+    });
+
+    return baseItems;
+  }, [cartItems, swappedItems]);
 
   // FIXED: Memoize expensive calculations
   const subtotal = useMemo(() => 
@@ -194,7 +374,7 @@ export default function CartTab() {
   }, [localCartItems]);
 
   // AI Cart Optimizer Logic
-  const generateAIOptimizations = useCallback((cartItems: CartItem[]): AIOptimization[] => {
+  const generateAIOptimizations = useCallback((cartItems: ExtendedCartItem[]): AIOptimization[] => {
     if (cartItems.length === 0) return [];
 
     const optimizations: AIOptimization[] = [];
@@ -335,6 +515,44 @@ export default function CartTab() {
   const navigateToScanner = () => {
     router.push('./scan');
   };
+
+  // Swap functionality
+  const swapToEcoAlternative = useCallback((itemId: string) => {
+    const item = localCartItems.find(i => i.id === itemId);
+    if (item?.ecoAlternative) {
+      const alt = item.ecoAlternative;
+      
+      // Create updated item with eco alternative data
+      const swappedItem: ExtendedCartItem = {
+        id: item.id, // Keep the same ID to maintain cart item reference
+        name: alt.name,
+        brand: alt.brand,
+        price: alt.price,
+        originalPrice: item.originalPrice,
+        quantity: item.quantity,
+        co2Impact: alt.co2Impact,
+        sustainabilityScore: alt.sustainabilityScore,
+        category: item.category,
+        isEcoFriendly: true,
+        ecoPoints: alt.ecoPoints,
+        aisle: item.aisle,
+        image: item.image,
+        isRescueDeal: false,
+        isEcoAlternative: true, // Mark as eco alternative
+        isScanned: item.isScanned,
+        ecoAlternative: undefined // Remove eco alternative since it's now the eco version
+      };
+      
+      // Store the swapped item in local state
+      setSwappedItems(prev => ({
+        ...prev,
+        [itemId]: swappedItem
+      }));
+    }
+    
+    setShowSwapModal(false);
+    Alert.alert('Swapped! 🌱', 'You\'ve chosen the eco-friendly option and will earn extra EcoPoints!');
+  }, [localCartItems]);
 
   // AI Optimizer Action Functions
   // (Removed duplicate handleOptimizationAction declaration)
@@ -486,6 +704,15 @@ export default function CartTab() {
     Alert.alert('Promo Applied! 🎉', foundPromo.description);
   }, [promoCodes, promoCode]);
 
+  const handleCloseReceipt = () => {
+    setShowReceiptModal(false);
+    setDigitalReceipt(null);
+    clearCart();
+    setAppliedDiscounts([]);
+    setPromoCode('');
+    setSwappedItems({}); // Clear swapped items when cart is cleared
+  };
+
   // Payment processing
   const processPayment = useCallback(async () => {
     setPaymentProcessing(true);
@@ -546,15 +773,14 @@ export default function CartTab() {
       }
     };
 
+    setDigitalReceipt(receipt);
+    setShowReceiptModal(true);
+
     addOrder(newOrder);
     setUserEcoPoints(prev => prev + ecoPoints);
-    setDigitalReceipt(receipt);
+    
     setPaymentProcessing(false);
     setShowPaymentModal(false);
-    setShowReceiptModal(true);
-    clearCart();
-    setAppliedDiscounts([]);
-    setPromoCode('');
     
     processingAnimation.stopAnimation();
     processingAnimation.setValue(0);
@@ -565,6 +791,7 @@ export default function CartTab() {
       Alert.alert('Empty Cart', 'Please add items to your cart before proceeding.');
       return;
     }
+    setDigitalReceipt(null);
     setShowPaymentModal(true);
   }, [localCartItems]);
 
@@ -611,7 +838,7 @@ Thank you for shopping sustainably!
   }, [digitalReceipt]);
 
   // FIXED: Memoize component functions
-  const CartItemCard = useCallback(({ item }: { item: CartItem }) => (
+  const CartItemCard = useCallback(({ item }: { item: ExtendedCartItem }) => (
     <View style={styles.cartItemCard}>
       <View style={styles.itemHeader}>
         <View style={styles.itemInfo}>
@@ -680,6 +907,22 @@ Thank you for shopping sustainably!
           </TouchableOpacity>
         </View>
 
+        {item.ecoAlternative && (
+          <TouchableOpacity
+            style={styles.swapButton}
+            onPress={() => {
+              setSelectedItem(item);
+              setShowSwapModal(true);
+            }}
+          >
+            <Text style={styles.swapButtonText}>
+              🌱 Eco Swap {item.ecoAlternative.priceIncrease >= 0 ? 
+                `(+$${item.ecoAlternative.priceIncrease.toFixed(2)})` : 
+                `(-$${Math.abs(item.ecoAlternative.priceIncrease).toFixed(2)})`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <TouchableOpacity
           style={styles.removeButton}
           onPress={() => removeFromCart(item.id)}
@@ -689,6 +932,84 @@ Thank you for shopping sustainably!
       </View>
     </View>
   ), [updateCartItemQuantity, removeFromCart]);
+
+  const SwapModal = useCallback(() => (
+    <Modal visible={showSwapModal} animationType="slide" presentationStyle="formSheet">
+      <SafeAreaView style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={() => setShowSwapModal(false)}>
+            <Text style={styles.modalBackButton}>✕ Close</Text>
+          </TouchableOpacity>
+          <Text style={styles.modalTitle}>Eco Swap Suggestion</Text>
+          <View />
+        </View>
+
+        {selectedItem?.ecoAlternative && (
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.swapComparisonCard}>
+              <Text style={styles.swapTitle}>🌱 Better Choice Available!</Text>
+              
+              <View style={styles.comparisonGrid}>
+                <View style={styles.comparisonItem}>
+                  <Text style={styles.comparisonLabel}>Current</Text>
+                  <Text style={styles.comparisonName}>{selectedItem.name}</Text>
+                  <Text style={styles.comparisonPrice}>${selectedItem.price.toFixed(2)}</Text>
+                  <Text style={styles.comparisonCO2}>🌍 {selectedItem.co2Impact.toFixed(2)} kg CO₂</Text>
+                  <Text style={styles.comparisonPoints}>💰 {selectedItem.ecoPoints} points</Text>
+                </View>
+
+                <View style={styles.comparisonDivider}>
+                  <Text style={styles.comparisonVs}>VS</Text>
+                </View>
+
+                <View style={[styles.comparisonItem, styles.ecoComparisonItem]}>
+                  <Text style={styles.comparisonLabel}>🌱 Eco Choice</Text>
+                  <Text style={styles.comparisonName}>{selectedItem.ecoAlternative.name}</Text>
+                  <Text style={styles.comparisonPrice}>${selectedItem.ecoAlternative.price.toFixed(2)}</Text>
+                  <Text style={[styles.comparisonCO2, styles.betterCO2]}>
+                    🌍 {selectedItem.ecoAlternative.co2Impact.toFixed(2)} kg CO₂
+                  </Text>
+                  <Text style={[styles.comparisonPoints, styles.betterPoints]}>
+                    💰 {selectedItem.ecoAlternative.ecoPoints} points
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.benefitsCard}>
+                <Text style={styles.benefitsTitle}>💚 Benefits</Text>
+                <Text style={styles.benefitText}>
+                  • Save {(selectedItem.co2Impact - selectedItem.ecoAlternative.co2Impact).toFixed(2)} kg CO₂
+                </Text>
+                <Text style={styles.benefitText}>
+                  • Earn {selectedItem.ecoAlternative.ecoPoints - selectedItem.ecoPoints} more EcoPoints
+                </Text>
+                <Text style={styles.benefitText}>
+                  • {selectedItem.ecoAlternative.priceIncrease >= 0 
+                    ? `Only ${selectedItem.ecoAlternative.priceIncrease.toFixed(2)} more` 
+                    : `Save ${Math.abs(selectedItem.ecoAlternative.priceIncrease).toFixed(2)}`}
+                </Text>
+              </View>
+
+              <View style={styles.swapActions}>
+                <TouchableOpacity 
+                  style={styles.keepButton}
+                  onPress={() => setShowSwapModal(false)}
+                >
+                  <Text style={styles.keepButtonText}>Keep Current</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.swapConfirmButton}
+                  onPress={() => swapToEcoAlternative(selectedItem.id)}
+                >
+                  <Text style={styles.swapConfirmButtonText}>🌱 Make Swap</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        )}
+      </SafeAreaView>
+    </Modal>
+  ), [showSwapModal, selectedItem, swapToEcoAlternative]);
 
   const EmptyCartView = useCallback(() => (
     <View style={styles.emptyCartContainer}>
@@ -957,7 +1278,7 @@ Thank you for shopping sustainably!
     <Modal visible={showReceiptModal} animationType="slide" presentationStyle="formSheet">
       <SafeAreaView style={styles.receiptModalContainer}>
         <View style={styles.receiptHeader}>
-          <TouchableOpacity onPress={() => setShowReceiptModal(false)}>
+          <TouchableOpacity onPress={handleCloseReceipt}>
             <Text style={styles.receiptCloseButton}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.receiptTitle}>Digital Receipt</Text>
@@ -1326,6 +1647,7 @@ Thank you for shopping sustainably!
       </>
     )}
     {/* Modals are now always rendered */}
+    <SwapModal />
     <AIOptimizerModal />
     <PaymentModal />
     <ReceiptModal />
@@ -1555,6 +1877,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
     paddingHorizontal: 16,
+  },
+  swapButton: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flex: 1,
+  },
+  swapButtonText: {
+    color: '#059669',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   removeButton: {
     backgroundColor: '#FEF2F2',
@@ -1848,6 +2185,134 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     padding: 20,
+  },
+
+  // Swap Modal Styles
+  swapComparisonCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  swapTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  comparisonGrid: {
+    marginBottom: 20,
+  },
+  comparisonItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  ecoComparisonItem: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 2,
+    borderColor: '#10B981',
+  },
+  comparisonLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  comparisonName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  comparisonPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0071CE',
+    marginBottom: 4,
+  },
+  comparisonCO2: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginBottom: 4,
+  },
+  betterCO2: {
+    color: '#10B981',
+  },
+  comparisonPoints: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '600',
+  },
+  betterPoints: {
+    color: '#10B981',
+  },
+  comparisonDivider: {
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  comparisonVs: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#6B7280',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  benefitsCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  benefitsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  benefitText: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 4,
+  },
+  swapActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  keepButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  keepButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  swapConfirmButton: {
+    flex: 1,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  swapConfirmButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 
   // AI Optimizer Modal Styles
