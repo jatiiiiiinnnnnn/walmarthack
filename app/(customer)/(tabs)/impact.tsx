@@ -1,13 +1,13 @@
 // app/(customer)/(tabs)/impact.tsx
 import React, { useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 type Timeframe = 'week' | 'month' | 'year';
@@ -333,6 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     paddingHorizontal: 20,
     paddingVertical: 24,
+    paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,

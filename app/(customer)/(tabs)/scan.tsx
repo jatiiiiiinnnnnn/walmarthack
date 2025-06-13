@@ -1,4 +1,4 @@
-// app/(customer)/(tabs)/scan.tsx - Enhanced with EcoPoints Integration
+// app/(customer)/(tabs)/scan.tsx - COMPLETE Enhanced with AI Integration & Cart Integration
 import { BarcodeScanningResult, CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import React, { useState } from 'react';
 import {
@@ -13,236 +13,300 @@ import {
   View
 } from 'react-native';
 
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAppData } from '../../contexts/AppDataContext';
+
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
-interface ProductRecommendation {
-  scannedProduct: {
-    name: string;
-    brand: string;
-    price: number;
-    co2Impact: number;
-    sustainabilityScore: number;
-    ecoPoints: number;
-  };
-  ecoAlternatives: Array<{
-    id: string;
-    name: string;
-    brand: string;
-    price: number;
-    co2Impact: number;
-    co2Savings: number;
-    sustainabilityScore: number;
-    aisle: string;
-    section: string;
-    distance: string;
-    features: string[];
-    certifications: string[];
-    ecoPoints: number;
-    ecoBonus: number; // Extra points for choosing eco alternative
-  }>;
+interface ScannedProduct {
+  name: string;
+  brand: string;
+  price: number;
+  co2Impact: number;
+  sustainabilityScore: number;
+  ecoPoints: number;
+  category: string;
+  barcode: string;
+}
+
+interface AIRecommendation {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  co2Impact: number;
+  co2Savings: number;
+  sustainabilityScore: number;
+  aisle: string;
+  section: string;
+  distance: string;
+  features: string[];
+  certifications: string[];
+  ecoPoints: number;
+  ecoBonus: number;
+  inStock: boolean;
+  reasonForRecommendation: string;
+  matchScore: number; // How well it matches the original product (0-100)
+}
+
+interface AIAnalysisResult {
+  scannedProduct: ScannedProduct;
+  aiRecommendations: AIRecommendation[];
+  analysisNotes: string;
+  sustainabilityTips: string[];
 }
 
 export default function EnhancedScanTab() {
+  const { 
+    addToCart, 
+    userEcoPoints, 
+    setUserEcoPoints,
+    inventory // AI inventory from context
+  } = useAppData();
+
   const [permission, requestPermission] = useCameraPermissions();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedData, setScannedData] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [recommendation, setRecommendation] = useState<ProductRecommendation | null>(null);
-  const [userEcoPoints, setUserEcoPoints] = useState(847);
+  const [analysisResult, setAnalysisResult] = useState<AIAnalysisResult | null>(null);
 
-  // Enhanced product database with eco points
-  const getProductRecommendation = (barcode: string): ProductRecommendation => {
-    const productDatabase: { [key: string]: ProductRecommendation } = {
+  // Enhanced AI algorithm to find relevant alternatives from inventory
+  const generateAIRecommendations = async (barcode: string): Promise<AIAnalysisResult> => {
+    // Simulate AI processing delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Mock product recognition based on barcode
+    const scannedProducts: { [key: string]: ScannedProduct } = {
       '123456789012': {
-        scannedProduct: {
-          name: "Regular Plastic Water Bottles (24 pack)",
-          brand: "AquaPure",
-          price: 4.99,
-          co2Impact: 5.8,
-          sustainabilityScore: 2.1,
-          ecoPoints: 0 // No points for regular products
-        },
-        ecoAlternatives: [
-          {
-            id: 'eco_1',
-            name: "Stainless Steel Water Bottle",
-            brand: "EcoFlow",
-            price: 19.99,
-            co2Impact: 1.2,
-            co2Savings: 4.6,
-            sustainabilityScore: 9.2,
-            aisle: "Health & Wellness",
-            section: "Aisle 12B",
-            distance: "150 ft from scan location",
-            features: ["BPA-free", "Insulated", "Dishwasher safe", "Lifetime warranty"],
-            certifications: ["Carbon Neutral", "Recycled Materials"],
-            ecoPoints: 25,
-            ecoBonus: 10 // Extra 10 points for scanning and choosing eco option
-          },
-          {
-            id: 'eco_2',
-            name: "Glass Water Bottle with Silicone Sleeve",
-            brand: "PureGlass",
-            price: 14.99,
-            co2Impact: 1.8,
-            co2Savings: 4.0,
-            sustainabilityScore: 8.5,
-            aisle: "Health & Wellness",
-            section: "Aisle 12A",
-            distance: "120 ft from scan location",
-            features: ["100% Glass", "Leak-proof", "Easy grip", "Dishwasher safe"],
-            certifications: ["Eco-Friendly", "Recyclable"],
-            ecoPoints: 18,
-            ecoBonus: 8
-          }
-        ]
+        name: "Regular Plastic Water Bottles (24 pack)",
+        brand: "AquaPure",
+        price: 4.99,
+        co2Impact: 5.8,
+        sustainabilityScore: 2.1,
+        ecoPoints: 0,
+        category: 'Beverages',
+        barcode: barcode
       },
       '098765432109': {
-        scannedProduct: {
-          name: "Ground Beef (1 lb)",
-          brand: "Fresh Choice",
-          price: 6.98,
-          co2Impact: 27.0,
-          sustainabilityScore: 3.2,
-          ecoPoints: 0
-        },
-        ecoAlternatives: [
-          {
-            id: 'eco_3',
-            name: "Plant-Based Ground Meat",
-            brand: "Beyond",
-            price: 7.99,
-            co2Impact: 3.5,
-            co2Savings: 23.5,
-            sustainabilityScore: 8.9,
-            aisle: "Refrigerated",
-            section: "Aisle 8C",
-            distance: "200 ft from scan location",
-            features: ["20g protein", "No cholesterol", "Non-GMO", "Plant-based"],
-            certifications: ["Plant-Based", "Climate-Friendly"],
-            ecoPoints: 30,
-            ecoBonus: 15
-          },
-          {
-            id: 'eco_4',
-            name: "Organic Lentils (1 lb)",
-            brand: "Organic Valley",
-            price: 3.49,
-            co2Impact: 0.9,
-            co2Savings: 26.1,
-            sustainabilityScore: 9.5,
-            aisle: "Pantry",
-            section: "Aisle 15A",
-            distance: "300 ft from scan location",
-            features: ["High protein", "High fiber", "Organic", "Versatile"],
-            certifications: ["USDA Organic", "Non-GMO"],
-            ecoPoints: 20,
-            ecoBonus: 12
-          }
-        ]
+        name: "Ground Beef (1 lb)",
+        brand: "Fresh Choice",
+        price: 6.98,
+        co2Impact: 27.0,
+        sustainabilityScore: 3.2,
+        ecoPoints: 0,
+        category: 'Meat',
+        barcode: barcode
       },
       '111222333444': {
-        scannedProduct: {
-          name: "Regular Paper Towels (8 rolls)",
-          brand: "CleanUp",
-          price: 12.99,
-          co2Impact: 4.2,
-          sustainabilityScore: 3.0,
-          ecoPoints: 0
-        },
-        ecoAlternatives: [
-          {
-            id: 'eco_5',
-            name: "Bamboo Paper Towels (8 rolls)",
-            brand: "EcoClean",
-            price: 15.99,
-            co2Impact: 1.8,
-            co2Savings: 2.4,
-            sustainabilityScore: 8.7,
-            aisle: "Household",
-            section: "Aisle 18A",
-            distance: "180 ft from scan location",
-            features: ["100% Bamboo", "Biodegradable", "Super absorbent", "Plastic-free packaging"],
-            certifications: ["FSC Certified", "Compostable"],
-            ecoPoints: 22,
-            ecoBonus: 10
-          }
-        ]
+        name: "Regular Paper Towels (8 rolls)",
+        brand: "CleanUp",
+        price: 12.99,
+        co2Impact: 4.2,
+        sustainabilityScore: 3.0,
+        ecoPoints: 0,
+        category: 'Household',
+        barcode: barcode
       },
       '555666777888': {
-        scannedProduct: {
-          name: "Regular Laundry Detergent (64 oz)",
-          brand: "SudsMaster",
-          price: 11.49,
-          co2Impact: 6.3,
-          sustainabilityScore: 3.8,
-          ecoPoints: 0
-        },
-        ecoAlternatives: [
-          {
-            id: 'eco_6',
-            name: "Concentrated Eco Detergent Pods",
-            brand: "GreenWash",
-            price: 13.99,
-            co2Impact: 2.1,
-            co2Savings: 4.2,
-            sustainabilityScore: 9.1,
-            aisle: "Household",
-            section: "Aisle 18C",
-            distance: "160 ft from scan location",
-            features: ["Plant-based", "Concentrated", "Plastic-free packaging", "Cold water effective"],
-            certifications: ["EPA Safer Choice", "Leaping Bunny"],
-            ecoPoints: 28,
-            ecoBonus: 12
-          }
-        ]
+        name: "Regular Laundry Detergent (64 oz)",
+        brand: "SudsMaster",
+        price: 11.49,
+        co2Impact: 6.3,
+        sustainabilityScore: 3.8,
+        ecoPoints: 0,
+        category: 'Household',
+        barcode: barcode
+      },
+      '999888777666': {
+        name: "Regular Cotton T-Shirt",
+        brand: "BasicWear",
+        price: 12.99,
+        co2Impact: 8.5,
+        sustainabilityScore: 3.5,
+        ecoPoints: 0,
+        category: 'Clothing',
+        barcode: barcode
+      },
+      '444555666777': {
+        name: "Smartphone Charger",
+        brand: "TechBasic",
+        price: 15.99,
+        co2Impact: 4.2,
+        sustainabilityScore: 4.0,
+        ecoPoints: 0,
+        category: 'Electronics',
+        barcode: barcode
       }
     };
 
-    // Return a default recommendation for unknown barcodes
-    return productDatabase[barcode] || {
-      scannedProduct: {
-        name: "Scanned Product",
-        brand: "Unknown Brand",
-        price: 5.99,
-        co2Impact: 8.5,
-        sustainabilityScore: 4.0,
-        ecoPoints: 0
-      },
-      ecoAlternatives: [
-        {
-          id: 'eco_default',
-          name: "Eco-Friendly Alternative",
-          brand: "Green Choice",
-          price: 6.99,
-          co2Impact: 2.1,
-          co2Savings: 6.4,
-          sustainabilityScore: 8.0,
-          aisle: "Organic Foods",
-          section: "Aisle 10B",
-          distance: "180 ft from scan location",
-          features: ["Sustainable", "Eco-friendly", "Better choice"],
-          certifications: ["Green Certified"],
-          ecoPoints: 15,
-          ecoBonus: 8
+    // Default scanned product if barcode not found
+    const scannedProduct = scannedProducts[barcode] || {
+      name: "Scanned Product",
+      brand: "Unknown Brand",
+      price: 5.99,
+      co2Impact: 8.5,
+      sustainabilityScore: 4.0,
+      ecoPoints: 0,
+      category: 'General',
+      barcode: barcode
+    };
+
+    // AI algorithm to find relevant alternatives from inventory
+    const findRelevantAlternatives = (product: ScannedProduct): AIRecommendation[] => {
+      let relevantItems: AIRecommendation[] = [];
+
+      // Enhanced matching algorithm
+      inventory.forEach(item => {
+        let matchScore = 0;
+        let reasonForRecommendation = '';
+
+        // Category-based matching
+        if (product.category.toLowerCase().includes('beverage') || product.name.toLowerCase().includes('water')) {
+          if (item.keywords.includes('water') || item.keywords.includes('drink')) {
+            matchScore += 40;
+            reasonForRecommendation = 'Sustainable hydration alternative';
+          }
         }
-      ]
+
+        if (product.category.toLowerCase().includes('meat') || product.name.toLowerCase().includes('beef')) {
+          if (item.keywords.includes('meat') || item.keywords.includes('protein')) {
+            matchScore += 45;
+            reasonForRecommendation = 'Plant-based protein alternative with 87% less CO₂';
+          }
+        }
+
+        if (product.name.toLowerCase().includes('paper towel') || product.category.toLowerCase().includes('household')) {
+          if (item.keywords.includes('paper') || item.keywords.includes('cleaning')) {
+            matchScore += 35;
+            reasonForRecommendation = 'Eco-friendly cleaning alternative';
+          }
+        }
+
+        if (product.category.toLowerCase().includes('clothing') || product.name.toLowerCase().includes('shirt')) {
+          if (item.keywords.includes('clothing') || item.keywords.includes('shirt')) {
+            matchScore += 40;
+            reasonForRecommendation = 'Sustainable clothing alternative with organic materials';
+          }
+        }
+
+        if (product.category.toLowerCase().includes('electronics') || product.name.toLowerCase().includes('charger')) {
+          if (item.keywords.includes('power') || item.keywords.includes('electronics')) {
+            matchScore += 35;
+            reasonForRecommendation = 'Energy-efficient electronics alternative';
+          }
+        }
+
+        // Generic eco-friendly alternatives for any product
+        if (matchScore === 0 && item.sustainabilityScore > product.sustainabilityScore) {
+          matchScore = 25;
+          reasonForRecommendation = 'More sustainable option in similar category';
+        }
+
+        // Add sustainability boost
+        if (item.sustainabilityScore >= 8.0) {
+          matchScore += 15;
+        }
+
+        // Only include items with decent match score
+        if (matchScore >= 25 && item.inStock) {
+          const co2Savings = Math.max(0, product.co2Impact - item.co2Impact);
+          const ecoBonus = Math.floor(matchScore / 10) + 5; // Bonus points based on match quality
+
+          relevantItems.push({
+            id: item.id,
+            name: item.name,
+            brand: item.brand,
+            price: item.price,
+            co2Impact: item.co2Impact,
+            co2Savings: co2Savings,
+            sustainabilityScore: item.sustainabilityScore,
+            aisle: item.aisle,
+            section: item.section,
+            distance: `${Math.floor(Math.random() * 200) + 100} ft from scan location`,
+            features: item.features,
+            certifications: item.certifications,
+            ecoPoints: item.ecoPoints,
+            ecoBonus: ecoBonus,
+            inStock: item.inStock,
+            reasonForRecommendation: reasonForRecommendation,
+            matchScore: matchScore
+          });
+        }
+      });
+
+      // Sort by match score and return top 3
+      return relevantItems
+        .sort((a, b) => b.matchScore - a.matchScore)
+        .slice(0, 3);
+    };
+
+    const aiRecommendations = findRelevantAlternatives(scannedProduct);
+
+    // Generate AI analysis notes
+    const generateAnalysisNotes = (product: ScannedProduct, recommendations: AIRecommendation[]) => {
+      const sustainabilityLevel = product.sustainabilityScore < 4 ? 'low' : 
+                                 product.sustainabilityScore < 7 ? 'moderate' : 'high';
+      
+      const avgCo2Savings = recommendations.length > 0 ? 
+        recommendations.reduce((sum, rec) => sum + rec.co2Savings, 0) / recommendations.length : 0;
+      
+      return `AI Analysis: This product has ${sustainabilityLevel} sustainability (${product.sustainabilityScore}/10). ` +
+             `By switching to recommended alternatives, you could save an average of ${avgCo2Savings.toFixed(1)}kg CO₂ ` +
+             `and earn up to ${Math.max(...recommendations.map(r => r.ecoPoints + r.ecoBonus), 0)} EcoPoints.`;
+    };
+
+    // Generate sustainability tips
+    const generateSustainabilityTips = (product: ScannedProduct): string[] => {
+      const tips = [
+        "Look for products with minimal packaging to reduce waste",
+        "Choose locally sourced items to reduce transportation emissions",
+        "Consider reusable alternatives to single-use products",
+        "Check for certifications like USDA Organic, Fair Trade, or Energy Star"
+      ];
+
+      // Add specific tips based on product category
+      if (product.category.toLowerCase().includes('beverage')) {
+        tips.push("Invest in a reusable water bottle to eliminate plastic waste");
+      }
+      if (product.category.toLowerCase().includes('meat')) {
+        tips.push("Try plant-based proteins 1-2 times per week to reduce carbon footprint");
+      }
+      if (product.category.toLowerCase().includes('household')) {
+        tips.push("Look for biodegradable cleaning products to protect waterways");
+      }
+      if (product.category.toLowerCase().includes('clothing')) {
+        tips.push("Choose organic cotton and sustainable fabrics");
+      }
+      if (product.category.toLowerCase().includes('electronics')) {
+        tips.push("Look for energy-efficient and solar-powered alternatives");
+      }
+
+      return tips.slice(0, 3); // Return top 3 relevant tips
+    };
+
+    return {
+      scannedProduct,
+      aiRecommendations,
+      analysisNotes: generateAnalysisNotes(scannedProduct, aiRecommendations),
+      sustainabilityTips: generateSustainabilityTips(scannedProduct)
     };
   };
 
-  const handleBarCodeScanned = ({ data }: BarcodeScanningResult) => {
+  const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
     setScannedData(data);
     setIsScanning(false);
     setLoading(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      const productRecommendation = getProductRecommendation(data);
-      setRecommendation(productRecommendation);
+    try {
+      const result = await generateAIRecommendations(data);
+      setAnalysisResult(result);
       setLoading(false);
       setShowResults(true);
-    }, 1500);
+    } catch (error) {
+      setLoading(false);
+      Alert.alert('Error', 'Failed to analyze product. Please try again.');
+    }
   };
 
   const startScanning = async () => {
@@ -269,29 +333,57 @@ export default function EnhancedScanTab() {
     return '#EF4444'; // Red
   };
 
-  const addToCartWithEcoPoints = (product: any, isEcoAlternative = false) => {
+  const addToCartWithEcoPoints = (product: any, isAIRecommendation = false) => {
     let pointsEarned = 0;
-    let productName = '';
+    let productToAdd: any = {};
     
-    if (isEcoAlternative && recommendation) {
+    if (isAIRecommendation && analysisResult) {
       pointsEarned = product.ecoPoints + product.ecoBonus;
-      productName = product.name;
+      productToAdd = {
+        id: product.id,
+        name: product.name,
+        brand: product.brand,
+        price: product.price,
+        category: analysisResult.scannedProduct.category,
+        ecoPoints: pointsEarned,
+        aisle: product.aisle,
+        isEcoAlternative: true,
+        co2Impact: product.co2Impact,
+        sustainabilityScore: product.sustainabilityScore,
+        isEcoFriendly: true
+      };
       setUserEcoPoints(prev => prev + pointsEarned);
-    } else if (recommendation) {
-      pointsEarned = recommendation.scannedProduct.ecoPoints;
-      productName = recommendation.scannedProduct.name;
+    } else if (analysisResult) {
+      pointsEarned = analysisResult.scannedProduct.ecoPoints;
+      productToAdd = {
+        id: `scanned_${analysisResult.scannedProduct.barcode}`,
+        name: analysisResult.scannedProduct.name,
+        brand: analysisResult.scannedProduct.brand,
+        price: analysisResult.scannedProduct.price,
+        category: analysisResult.scannedProduct.category,
+        ecoPoints: pointsEarned,
+        aisle: 'Scanned Item',
+        isScanned: true,
+        co2Impact: analysisResult.scannedProduct.co2Impact,
+        sustainabilityScore: analysisResult.scannedProduct.sustainabilityScore,
+        isEcoFriendly: false
+      };
       if (pointsEarned > 0) {
         setUserEcoPoints(prev => prev + pointsEarned);
       }
     }
 
+    // Add to cart using context function
+    addToCart(productToAdd);
+
     Alert.alert(
-      isEcoAlternative ? '🌱 Eco Choice Added!' : 'Added to Cart!',
-      `${productName} has been added to your cart.\n\n💰 Price: $${product.price}\n🌟 EcoPoints Earned: ${pointsEarned}${pointsEarned > 0 ? '\n\n🎉 Great eco-friendly choice!' : '\n\n💡 Tip: Choose eco alternatives to earn more points!'}`,
+      isAIRecommendation ? '🌱 AI Recommendation Added!' : 'Scanned Item Added!',
+      `${productToAdd.name} has been added to your cart.\n\n💰 Price: $${productToAdd.price}\n🌟 EcoPoints Earned: ${pointsEarned}${isAIRecommendation ? '\n\n🎉 Great choice! AI found you a better alternative!' : ''}${pointsEarned === 0 ? '\n\n💡 Tip: Try our AI recommendations to earn more points!' : ''}`,
       [
         { text: 'Continue Shopping', style: 'default' },
         { text: 'View Cart', onPress: () => {
-          // Navigate to cart - in real app would use navigation
+          // Navigate to cart tab
+          // In real app: router.push('/(customer)/(tabs)/cart')
           Alert.alert('Navigation', 'Would navigate to cart tab');
         }}
       ]
@@ -315,7 +407,7 @@ export default function EnhancedScanTab() {
             Point camera at product barcode
           </Text>
           <Text style={styles.scanSubInstruction}>
-            Get instant eco-friendly recommendations and earn EcoPoints!
+            AI will find the best eco-friendly alternatives from our inventory
           </Text>
           <TouchableOpacity 
             style={styles.cancelScanButton}
@@ -330,10 +422,13 @@ export default function EnhancedScanTab() {
 
   const LoadingView = () => (
     <View style={styles.loadingContainer}>
-      <Text style={styles.loadingIcon}>🔍</Text>
-      <Text style={styles.loadingTitle}>Analyzing Product...</Text>
+      <Text style={styles.loadingIcon}>🤖</Text>
+      <Text style={styles.loadingTitle}>AI Analyzing Product...</Text>
       <Text style={styles.loadingText}>
-        Finding eco-friendly alternatives and calculating EcoPoints rewards
+        • Identifying scanned product{'\n'}
+        • Searching inventory for alternatives{'\n'}
+        • Calculating environmental impact{'\n'}
+        • Generating personalized recommendations
       </Text>
       <View style={styles.loadingPoints}>
         <Text style={styles.loadingPointsText}>💰 Current EcoPoints: {userEcoPoints}</Text>
@@ -348,7 +443,7 @@ export default function EnhancedScanTab() {
           <TouchableOpacity onPress={() => setShowResults(false)}>
             <Text style={styles.modalBackButton}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>Scan Results</Text>
+          <Text style={styles.modalTitle}>🤖 AI Analysis Results</Text>
           <TouchableOpacity onPress={() => {
             setShowResults(false);
             startScanning();
@@ -357,184 +452,156 @@ export default function EnhancedScanTab() {
           </TouchableOpacity>
         </View>
 
-        {recommendation && (
+        {analysisResult && (
           <ScrollView style={styles.modalContent}>
-            {/* User EcoPoints Display */}
-            <View style={styles.ecoPointsHeader}>
-              <Text style={styles.ecoPointsTitle}>💰 Your EcoPoints</Text>
-              <Text style={styles.ecoPointsBalance}>{userEcoPoints} points</Text>
+            {/* AI Analysis Summary */}
+            <View style={styles.aiAnalysisCard}>
+              <Text style={styles.aiAnalysisTitle}>🤖 AI Analysis</Text>
+              <Text style={styles.aiAnalysisText}>{analysisResult.analysisNotes}</Text>
             </View>
 
             {/* Scanned Product */}
             <View style={styles.scannedProductCard}>
               <Text style={styles.scannedProductTitle}>Scanned Product</Text>
-              <Text style={styles.productName}>{recommendation.scannedProduct.name}</Text>
-              <Text style={styles.productBrand}>{recommendation.scannedProduct.brand}</Text>
+              <Text style={styles.productName}>{analysisResult.scannedProduct.name}</Text>
+              <Text style={styles.productBrand}>{analysisResult.scannedProduct.brand}</Text>
+              <Text style={styles.productBarcode}>Barcode: {analysisResult.scannedProduct.barcode}</Text>
               
               <View style={styles.productMetrics}>
                 <View style={styles.metricItem}>
                   <Text style={styles.metricLabel}>Price</Text>
-                  <Text style={styles.metricValue}>${recommendation.scannedProduct.price}</Text>
+                  <Text style={styles.metricValue}>${analysisResult.scannedProduct.price}</Text>
                 </View>
                 <View style={styles.metricItem}>
                   <Text style={styles.metricLabel}>CO₂ Impact</Text>
                   <Text style={[styles.metricValue, { color: '#EF4444' }]}>
-                    {recommendation.scannedProduct.co2Impact} kg
+                    {analysisResult.scannedProduct.co2Impact} kg
                   </Text>
                 </View>
                 <View style={styles.metricItem}>
-                  <Text style={styles.metricLabel}>EcoPoints</Text>
-                  <Text style={[styles.metricValue, { color: '#F59E0B' }]}>
-                    {recommendation.scannedProduct.ecoPoints}
+                  <Text style={styles.metricLabel}>Eco Score</Text>
+                  <Text style={[styles.metricValue, { color: getSustainabilityColor(analysisResult.scannedProduct.sustainabilityScore) }]}>
+                    {analysisResult.scannedProduct.sustainabilityScore}/10
                   </Text>
                 </View>
               </View>
 
               <TouchableOpacity 
                 style={styles.addOriginalButton}
-                onPress={() => addToCartWithEcoPoints(recommendation.scannedProduct, false)}
+                onPress={() => addToCartWithEcoPoints(analysisResult.scannedProduct, false)}
               >
                 <Text style={styles.addOriginalButtonText}>
-                  Add to Cart • ${recommendation.scannedProduct.price}
-                  {recommendation.scannedProduct.ecoPoints > 0 && ` • +${recommendation.scannedProduct.ecoPoints} points`}
+                  Add Scanned Item • ${analysisResult.scannedProduct.price}
+                  {analysisResult.scannedProduct.ecoPoints > 0 && ` • +${analysisResult.scannedProduct.ecoPoints} points`}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Eco Alternatives */}
-            <Text style={styles.alternativesTitle}>🌱 Better Eco Alternatives</Text>
-            
-            {recommendation.ecoAlternatives.map((alternative, index) => (
-              <View key={alternative.id} style={styles.alternativeCard}>
-                <View style={styles.alternativeHeader}>
-                  <View style={styles.alternativeInfo}>
-                    <Text style={styles.alternativeName}>{alternative.name}</Text>
-                    <Text style={styles.alternativeBrand}>{alternative.brand}</Text>
-                  </View>
-                  <View style={styles.ecoScoreBadge}>
-                    <Text style={[
-                      styles.ecoScoreText,
-                      { color: getSustainabilityColor(alternative.sustainabilityScore) }
-                    ]}>
-                      {alternative.sustainabilityScore}/10
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.alternativeMetrics}>
-                  <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>Price</Text>
-                    <Text style={styles.metricValue}>${alternative.price}</Text>
-                  </View>
-                  <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>CO₂ Savings</Text>
-                    <Text style={[styles.metricValue, { color: '#10B981' }]}>
-                      -{alternative.co2Savings} kg
-                    </Text>
-                  </View>
-                  <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>EcoPoints</Text>
-                    <Text style={[styles.metricValue, { color: '#F59E0B' }]}>
-                      {alternative.ecoPoints}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* EcoPoints Bonus Card */}
-                <View style={styles.bonusPointsCard}>
-                  <Text style={styles.bonusPointsIcon}>🎁</Text>
-                  <View style={styles.bonusPointsInfo}>
-                    <Text style={styles.bonusPointsTitle}>Scan Bonus!</Text>
-                    <Text style={styles.bonusPointsText}>
-                      Choose this eco option and earn {alternative.ecoPoints + alternative.ecoBonus} total points
-                      ({alternative.ecoPoints} base + {alternative.ecoBonus} scan bonus)
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Location Information */}
-                <View style={styles.locationCard}>
-                  <Text style={styles.locationTitle}>📍 Store Location</Text>
-                  <View style={styles.locationDetails}>
-                    <Text style={styles.locationText}>
-                      <Text style={styles.locationLabel}>Aisle: </Text>
-                      {alternative.aisle}
-                    </Text>
-                    <Text style={styles.locationText}>
-                      <Text style={styles.locationLabel}>Section: </Text>
-                      {alternative.section}
-                    </Text>
-                    <Text style={styles.locationText}>
-                      <Text style={styles.locationLabel}>Distance: </Text>
-                      {alternative.distance}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Features */}
-                <View style={styles.featuresSection}>
-                  <Text style={styles.featuresTitle}>Key Features</Text>
-                  <View style={styles.featuresList}>
-                    {alternative.features.map((feature, idx) => (
-                      <View key={idx} style={styles.featureItem}>
-                        <Text style={styles.featureBullet}>✓</Text>
-                        <Text style={styles.featureText}>{feature}</Text>
+            {/* AI Recommendations */}
+            {analysisResult.aiRecommendations.length > 0 ? (
+              <>
+                <Text style={styles.recommendationsTitle}>🌱 AI-Powered Eco Recommendations</Text>
+                
+                {analysisResult.aiRecommendations.map((recommendation, index) => (
+                  <View key={recommendation.id} style={styles.recommendationCard}>
+                    <View style={styles.recommendationHeader}>
+                      <View style={styles.recommendationInfo}>
+                        <Text style={styles.recommendationName}>{recommendation.name}</Text>
+                        <Text style={styles.recommendationBrand}>{recommendation.brand}</Text>
+                        <Text style={styles.recommendationReason}>{recommendation.reasonForRecommendation}</Text>
                       </View>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Certifications */}
-                <View style={styles.certificationsSection}>
-                  <Text style={styles.certificationsTitle}>Certifications</Text>
-                  <View style={styles.certificationsList}>
-                    {alternative.certifications.map((cert, idx) => (
-                      <View key={idx} style={styles.certificationBadge}>
-                        <Text style={styles.certificationText}>{cert}</Text>
+                      <View style={styles.matchScoreBadge}>
+                        <Text style={styles.matchScoreText}>{recommendation.matchScore}% match</Text>
                       </View>
-                    ))}
+                    </View>
+
+                    <View style={styles.recommendationMetrics}>
+                      <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Price</Text>
+                        <Text style={styles.metricValue}>${recommendation.price}</Text>
+                      </View>
+                      <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>CO₂ Savings</Text>
+                        <Text style={[styles.metricValue, { color: '#10B981' }]}>
+                          -{recommendation.co2Savings.toFixed(1)} kg
+                        </Text>
+                      </View>
+                      <View style={styles.metricItem}>
+                        <Text style={styles.metricLabel}>Eco Score</Text>
+                        <Text style={[styles.metricValue, { color: getSustainabilityColor(recommendation.sustainabilityScore) }]}>
+                          {recommendation.sustainabilityScore}/10
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* AI Bonus Points */}
+                    <View style={styles.aiBonusCard}>
+                      <Text style={styles.aiBonusIcon}>🎁</Text>
+                      <View style={styles.aiBonusInfo}>
+                        <Text style={styles.aiBonusTitle}>AI Recommendation Bonus!</Text>
+                        <Text style={styles.aiBonusText}>
+                          Total EcoPoints: {recommendation.ecoPoints + recommendation.ecoBonus} 
+                          ({recommendation.ecoPoints} base + {recommendation.ecoBonus} AI bonus)
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Location & Features */}
+                    <View style={styles.locationCard}>
+                      <Text style={styles.locationTitle}>📍 Store Location</Text>
+                      <Text style={styles.locationText}>
+                        <Text style={styles.locationLabel}>Section: </Text>
+                        {recommendation.section}
+                      </Text>
+                      <Text style={styles.locationText}>
+                        <Text style={styles.locationLabel}>Distance: </Text>
+                        {recommendation.distance}
+                      </Text>
+                    </View>
+
+                    <View style={styles.featuresSection}>
+                      <Text style={styles.featuresTitle}>Key Features</Text>
+                      <View style={styles.featuresList}>
+                        {recommendation.features.slice(0, 3).map((feature, idx) => (
+                          <View key={idx} style={styles.featureItem}>
+                            <Text style={styles.featureBullet}>✓</Text>
+                            <Text style={styles.featureText}>{feature}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+
+                    <TouchableOpacity 
+                      style={styles.addRecommendationButton}
+                      onPress={() => addToCartWithEcoPoints(recommendation, true)}
+                    >
+                      <Text style={styles.addRecommendationButtonText}>
+                        🤖 Add AI Recommendation • ${recommendation.price} • +{recommendation.ecoPoints + recommendation.ecoBonus} points
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
-
-                <View style={styles.alternativeActions}>
-                  <TouchableOpacity style={styles.navigateButton}>
-                    <Text style={styles.navigateButtonText}>
-                      🧭 Navigate to {alternative.section}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.addEcoButton}
-                    onPress={() => addToCartWithEcoPoints(alternative, true)}
-                  >
-                    <Text style={styles.addEcoButtonText}>
-                      🌱 Add Eco Choice • ${alternative.price} • +{alternative.ecoPoints + alternative.ecoBonus} points
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                ))}
+              </>
+            ) : (
+              <View style={styles.noRecommendationsCard}>
+                <Text style={styles.noRecommendationsIcon}>🤖</Text>
+                <Text style={styles.noRecommendationsTitle}>No Eco Alternatives Found</Text>
+                <Text style={styles.noRecommendationsText}>
+                  Our AI couldn't find better alternatives for this product in our current inventory. 
+                  This might mean it's already a great sustainable choice!
+                </Text>
               </View>
-            ))}
+            )}
 
-            {/* Impact Summary */}
-            <View style={styles.impactSummary}>
-              <Text style={styles.impactTitle}>🌍 Your Potential Impact</Text>
-              <Text style={styles.impactText}>
-                By choosing the best eco alternative, you could:
-              </Text>
-              <View style={styles.impactStats}>
-                <View style={styles.impactStat}>
-                  <Text style={styles.impactStatValue}>
-                    -{Math.max(...recommendation.ecoAlternatives.map(alt => alt.co2Savings)).toFixed(1)} kg
-                  </Text>
-                  <Text style={styles.impactStatLabel}>CO₂ Saved</Text>
+            {/* Sustainability Tips */}
+            <View style={styles.tipsCard}>
+              <Text style={styles.tipsTitle}>💡 AI Sustainability Tips</Text>
+              {analysisResult.sustainabilityTips.map((tip, index) => (
+                <View key={index} style={styles.tipItem}>
+                  <Text style={styles.tipBullet}>•</Text>
+                  <Text style={styles.tipText}>{tip}</Text>
                 </View>
-                <View style={styles.impactStat}>
-                  <Text style={styles.impactStatValue}>
-                    +{Math.max(...recommendation.ecoAlternatives.map(alt => alt.ecoPoints + alt.ecoBonus))}
-                  </Text>
-                  <Text style={styles.impactStatLabel}>EcoPoints Earned</Text>
-                </View>
-              </View>
+              ))}
             </View>
           </ScrollView>
         )}
@@ -550,9 +617,9 @@ export default function EnhancedScanTab() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>📱 Smart Eco Scanner</Text>
+        <Text style={styles.headerTitle}>Walmart WiseBuy</Text>
         <Text style={styles.headerSubtitle}>
-          Scan products to discover eco-friendly alternatives and earn EcoPoints
+          Scan products and let WiseBuy find the best eco-friendly alternatives from our inventory
         </Text>
         <View style={styles.headerPoints}>
           <Text style={styles.headerPointsText}>💰 {userEcoPoints} EcoPoints</Text>
@@ -565,61 +632,36 @@ export default function EnhancedScanTab() {
         <LoadingView />
       ) : (
         <ScrollView style={styles.content}>
-          {/* Getting Started Section */}
+          {/* AI Features Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>How it works</Text>
-            <View style={styles.stepsContainer}>
-              <View style={styles.stepItem}>
-                <View style={styles.stepIcon}>
-                  <Text style={styles.stepIconText}>1️⃣</Text>
+            <Text style={styles.sectionTitle}>What does WiseBuy do?</Text>
+            <View style={styles.aiFeaturesContainer}>
+              <View style={styles.aiFeatureCard}>
+                <Text style={styles.aiFeatureIcon}>🔍</Text>
+                <View style={styles.aiFeatureContent}>
+                  <Text style={styles.aiFeatureTitle}>Smart Product Recognition</Text>
+                  <Text style={styles.aiFeatureText}>
+                    AI instantly identifies products and analyzes their environmental impact
+                  </Text>
                 </View>
-                <Text style={styles.stepText}>Scan the barcode of any product</Text>
               </View>
-              <View style={styles.stepItem}>
-                <View style={styles.stepIcon}>
-                  <Text style={styles.stepIconText}>2️⃣</Text>
+              <View style={styles.aiFeatureCard}>
+                <Text style={styles.aiFeatureIcon}>🌱</Text>
+                <View style={styles.aiFeatureContent}>
+                  <Text style={styles.aiFeatureTitle}>Inventory-Based Recommendations</Text>
+                  <Text style={styles.aiFeatureText}>
+                    Find real eco alternatives available in our store right now
+                  </Text>
                 </View>
-                <Text style={styles.stepText}>Get AI-powered eco recommendations</Text>
               </View>
-              <View style={styles.stepItem}>
-                <View style={styles.stepIcon}>
-                  <Text style={styles.stepIconText}>3️⃣</Text>
+              <View style={styles.aiFeatureCard}>
+                <Text style={styles.aiFeatureIcon}>💰</Text>
+                <View style={styles.aiFeatureContent}>
+                  <Text style={styles.aiFeatureTitle}>Bonus EcoPoints</Text>
+                  <Text style={styles.aiFeatureText}>
+                    Earn extra points when you choose AI-recommended alternatives
+                  </Text>
                 </View>
-                <Text style={styles.stepText}>Earn EcoPoints for eco-friendly choices</Text>
-              </View>
-              <View style={styles.stepItem}>
-                <View style={styles.stepIcon}>
-                  <Text style={styles.stepIconText}>4️⃣</Text>
-                </View>
-                <Text style={styles.stepText}>Use points for discounts in your cart</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* EcoPoints Benefits */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>EcoPoints Benefits</Text>
-            <View style={styles.benefitsContainer}>
-              <View style={styles.benefitCard}>
-                <Text style={styles.benefitIcon}>💰</Text>
-                <Text style={styles.benefitTitle}>Earn & Save</Text>
-                <Text style={styles.benefitText}>
-                  Earn points for eco choices, use them for discounts
-                </Text>
-              </View>
-              <View style={styles.benefitCard}>
-                <Text style={styles.benefitIcon}>🌱</Text>
-                <Text style={styles.benefitTitle}>Eco Bonuses</Text>
-                <Text style={styles.benefitText}>
-                  Get bonus points when you scan and choose eco alternatives
-                </Text>
-              </View>
-              <View style={styles.benefitCard}>
-                <Text style={styles.benefitIcon}>🏆</Text>
-                <Text style={styles.benefitTitle}>Rewards Tiers</Text>
-                <Text style={styles.benefitText}>
-                  Unlock better discounts as you collect more points
-                </Text>
               </View>
             </View>
           </View>
@@ -627,23 +669,23 @@ export default function EnhancedScanTab() {
           {/* Scan Button */}
           <View style={styles.scanSection}>
             <TouchableOpacity style={styles.scanButton} onPress={startScanning}>
-              <Text style={styles.scanButtonIcon}>📷</Text>
-              <Text style={styles.scanButtonText}>Start Scanning</Text>
-              <Text style={styles.scanButtonSubtext}>Tap to open camera & earn points</Text>
+              <Text style={styles.scanButtonIcon}><MaterialCommunityIcons name="barcode-scan" size={32} color="#22C55E" /></Text>
+              <Text style={styles.scanButtonText}>Click Me!!</Text>
+              <Text style={styles.scanButtonSubtext}>Tap to activate AI-powered analysis</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Recent Scans */}
+          {/* Recent Scan */}
           {scannedData && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Recent Scan</Text>
+              <Text style={styles.sectionTitle}>Recent AI Analysis</Text>
               <TouchableOpacity 
                 style={styles.recentScanCard}
                 onPress={() => setShowResults(true)}
               >
-                <Text style={styles.recentScanIcon}>🔍</Text>
+                <Text style={styles.recentScanIcon}>🤖</Text>
                 <View style={styles.recentScanInfo}>
-                  <Text style={styles.recentScanTitle}>Product Scanned</Text>
+                  <Text style={styles.recentScanTitle}>AI Analysis Complete</Text>
                   <Text style={styles.recentScanBarcode}>Barcode: {scannedData}</Text>
                   <Text style={styles.recentScanTime}>
                     {new Date().toLocaleTimeString()}
@@ -653,6 +695,37 @@ export default function EnhancedScanTab() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* How AI Works */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>How Our AI Works</Text>
+            <View style={styles.aiProcessCard}>
+              <View style={styles.aiProcessStep}>
+                <View style={styles.aiProcessIcon}>
+                  <Text style={styles.aiProcessIconText}>1️⃣</Text>
+                </View>
+                <Text style={styles.aiProcessText}>Scan barcode to identify the product</Text>
+              </View>
+              <View style={styles.aiProcessStep}>
+                <View style={styles.aiProcessIcon}>
+                  <Text style={styles.aiProcessIconText}>2️⃣</Text>
+                </View>
+                <Text style={styles.aiProcessText}>AI analyzes environmental impact & sustainability</Text>
+              </View>
+              <View style={styles.aiProcessStep}>
+                <View style={styles.aiProcessIcon}>
+                  <Text style={styles.aiProcessIconText}>3️⃣</Text>
+                </View>
+                <Text style={styles.aiProcessText}>Search our real inventory for better alternatives</Text>
+              </View>
+              <View style={styles.aiProcessStep}>
+                <View style={styles.aiProcessIcon}>
+                  <Text style={styles.aiProcessIconText}>4️⃣</Text>
+                </View>
+                <Text style={styles.aiProcessText}>Get personalized recommendations & add to cart!</Text>
+              </View>
+            </View>
+          </View>
 
           {/* Tips Section */}
           <View style={styles.section}>
@@ -701,6 +774,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     paddingHorizontal: 20,
     paddingVertical: 24,
+    paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,
@@ -738,7 +812,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
   },
-  stepsContainer: {
+  aiFeaturesContainer: {
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 20,
@@ -748,61 +822,32 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  stepItem: {
+  aiFeatureCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  stepIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F0FDF4',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  stepIconText: {
-    fontSize: 20,
-  },
-  stepText: {
-    fontSize: 16,
-    color: '#4B5563',
-    flex: 1,
-  },
-  benefitsContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  benefitCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 16,
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  benefitIcon: {
+  aiFeatureIcon: {
     fontSize: 24,
     marginRight: 16,
+    marginTop: 2,
   },
-  benefitTitle: {
+  aiFeatureContent: {
+    flex: 1,
+  },
+  aiFeatureTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 4,
-    flex: 1,
   },
-  benefitText: {
+  aiFeatureText: {
     fontSize: 14,
     color: '#6B7280',
-    flex: 1,
+    lineHeight: 20,
   },
   scanSection: {
     alignItems: 'center',
@@ -953,6 +998,38 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#9CA3AF',
   },
+  aiProcessCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  aiProcessStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  aiProcessIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  aiProcessIconText: {
+    fontSize: 18,
+  },
+  aiProcessText: {
+    fontSize: 16,
+    color: '#4B5563',
+    flex: 1,
+  },
   tipsCard: {
     backgroundColor: 'white',
     borderRadius: 16,
@@ -1011,26 +1088,24 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
   },
-  ecoPointsHeader: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 12,
+  aiAnalysisCard: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: '#0EA5E9',
   },
-  ecoPointsTitle: {
+  aiAnalysisTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#92400E',
-  },
-  ecoPointsBalance: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: '#F59E0B',
+    color: '#0369A1',
+    marginBottom: 8,
+  },
+  aiAnalysisText: {
+    fontSize: 14,
+    color: '#0C4A6E',
+    lineHeight: 20,
   },
   scannedProductCard: {
     backgroundColor: 'white',
@@ -1059,6 +1134,11 @@ const styles = StyleSheet.create({
   productBrand: {
     fontSize: 14,
     color: '#6B7280',
+    marginBottom: 8,
+  },
+  productBarcode: {
+    fontSize: 12,
+    color: '#9CA3AF',
     marginBottom: 16,
   },
   productMetrics: {
@@ -1090,13 +1170,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  alternativesTitle: {
+  recommendationsTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 16,
   },
-  alternativeCard: {
+  recommendationCard: {
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 20,
@@ -1109,36 +1189,43 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#BBF7D0',
   },
-  alternativeHeader: {
+  recommendationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  alternativeInfo: {
+  recommendationInfo: {
     flex: 1,
   },
-  alternativeName: {
+  recommendationName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 4,
   },
-  alternativeBrand: {
+  recommendationBrand: {
     fontSize: 14,
     color: '#6B7280',
+    marginBottom: 4,
   },
-  ecoScoreBadge: {
-    backgroundColor: '#F0FDF4',
+  recommendationReason: {
+    fontSize: 12,
+    color: '#059669',
+    fontStyle: 'italic',
+  },
+  matchScoreBadge: {
+    backgroundColor: '#10B981',
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  ecoScoreText: {
-    fontSize: 14,
+  matchScoreText: {
+    color: 'white',
+    fontSize: 12,
     fontWeight: 'bold',
   },
-  alternativeMetrics: {
+  recommendationMetrics: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 16,
@@ -1146,7 +1233,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
   },
-  bonusPointsCard: {
+  aiBonusCard: {
     backgroundColor: '#FEF3C7',
     borderRadius: 12,
     padding: 12,
@@ -1156,20 +1243,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F59E0B',
   },
-  bonusPointsIcon: {
+  aiBonusIcon: {
     fontSize: 20,
     marginRight: 12,
   },
-  bonusPointsInfo: {
+  aiBonusInfo: {
     flex: 1,
   },
-  bonusPointsTitle: {
+  aiBonusTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#92400E',
     marginBottom: 2,
   },
-  bonusPointsText: {
+  aiBonusText: {
     fontSize: 12,
     color: '#B45309',
   },
@@ -1185,12 +1272,10 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 12,
   },
-  locationDetails: {
-    gap: 6,
-  },
   locationText: {
     fontSize: 14,
     color: '#374151',
+    marginBottom: 4,
   },
   locationLabel: {
     fontWeight: '600',
@@ -1221,46 +1306,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4B5563',
   },
-  certificationsSection: {
-    marginBottom: 16,
-  },
-  certificationsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  certificationsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  certificationBadge: {
-    backgroundColor: '#EF4444',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  certificationText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  alternativeActions: {
-    gap: 12,
-  },
-  navigateButton: {
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  navigateButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  addEcoButton: {
+  addRecommendationButton: {
     backgroundColor: '#10B981',
     borderRadius: 12,
     paddingVertical: 12,
@@ -1271,46 +1317,49 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  addEcoButtonText: {
+  addRecommendationButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
   },
-  impactSummary: {
-    backgroundColor: '#F0FDF4',
+  noRecommendationsCard: {
+    backgroundColor: 'white',
     borderRadius: 16,
-    padding: 20,
-    margin: 8,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  impactTitle: {
+  noRecommendationsIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  noRecommendationsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 8,
     textAlign: 'center',
   },
-  impactText: {
-    fontSize: 16,
-    color: '#374151',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  impactStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  impactStat: {
-    alignItems: 'center',
-  },
-  impactStatValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#059669',
-    marginBottom: 4,
-  },
-  impactStatLabel: {
-    fontSize: 12,
+  noRecommendationsText: {
+    fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  tipBullet: {
+    fontSize: 16,
+    color: '#10B981',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  tipsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#059669',
+    marginBottom: 12,
   },
 });

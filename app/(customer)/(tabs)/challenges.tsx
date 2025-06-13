@@ -1,14 +1,14 @@
 // app/(customer)/(tabs)/challenges.tsx
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const activeChallenges = [
@@ -434,6 +434,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
     paddingHorizontal: 20,
     paddingVertical: 24,
+    paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,

@@ -601,6 +601,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 32,
     paddingHorizontal: 20,
+    paddingTop: 50,
   },
   profileAvatar: {
     width: 80,

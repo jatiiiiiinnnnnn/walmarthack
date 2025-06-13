@@ -1,6 +1,6 @@
-// app/(customer)/(tabs)/_layout.tsx - Updated with cart tab
+// app/(customer)/(tabs)/_layout.tsx
+import { Feather, FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
 
 export default function CustomerTabsLayout() {
   return (
@@ -14,31 +14,22 @@ export default function CustomerTabsLayout() {
           borderTopColor: '#E5E7EB',
           paddingBottom: 8,
           paddingTop: 8,
-          height: 84,
+          height: 95,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
           marginTop: 4,
         },
-        headerStyle: {
-          backgroundColor: '#059669',
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        headerTintColor: '#ffffff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerShown: false, // Hides header globally
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
           title: 'Shop',
-          headerTitle: 'EcoCart',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size * 0.8, color }}>🛒</Text>
+            <Feather name="shopping-cart" size={size} color={color} />
           ),
         }}
       />
@@ -46,9 +37,8 @@ export default function CustomerTabsLayout() {
         name="challenges"
         options={{
           title: 'Challenges',
-          headerTitle: 'Environmental Challenges',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size * 0.8, color }}>🎯</Text>
+            <MaterialCommunityIcons name="target" size={size} color={color} />
           ),
         }}
       />
@@ -56,9 +46,8 @@ export default function CustomerTabsLayout() {
         name="scan"
         options={{
           title: 'Scan',
-          headerTitle: 'Smart Eco Scanner',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size * 0.8, color }}>📱</Text>
+            <Ionicons name="scan-outline" size={size} color={color} />
           ),
         }}
       />
@@ -66,20 +55,18 @@ export default function CustomerTabsLayout() {
         name="cart"
         options={{
           title: 'Cart',
-          headerTitle: 'My Cart',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size * 0.8, color }}>🛍️</Text>
+            <MaterialCommunityIcons name="cart-outline" size={size} color={color} />
           ),
-          tabBarBadge: undefined, // Will be dynamically set based on cart items
+          tabBarBadge: undefined,
         }}
       />
       <Tabs.Screen
         name="impact"
         options={{
           title: 'Impact',
-          headerTitle: 'My Environmental Impact',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size * 0.8, color }}>🌍</Text>
+            <FontAwesome5 name="globe-americas" size={size} color={color} />
           ),
         }}
       />
@@ -87,9 +74,8 @@ export default function CustomerTabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          headerTitle: 'My Profile',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size * 0.8, color }}>👤</Text>
+            <Feather name="user" size={size} color={color} />
           ),
         }}
       />
