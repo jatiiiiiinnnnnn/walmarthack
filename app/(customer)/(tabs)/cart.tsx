@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 
-import { CartItem, Order, useAppData } from '../../contexts/AppDataContext';
+import { CartItem, DonationItem, Order, useAppData } from '../../contexts/AppDataContext';
 
 interface EcoDiscount {
   id: string;
@@ -49,6 +49,7 @@ interface DigitalReceipt {
   orderNumber: string;
   date: Date;
   items: CartItem[];
+  donations?: DonationItem[];
   subtotal: number;
   discount: number;
   tax: number;
@@ -57,6 +58,8 @@ interface DigitalReceipt {
   cardLast4?: string;
   ecoPointsEarned: number;
   co2Impact: number;
+  donationCashbackPoints?: number;
+  donationsTotal?: number;
   storeInfo: {
     name: string;
     address: string;
@@ -88,7 +91,11 @@ export default function CartTab() {
     addOrder,
     updateCartItemQuantity,
     removeFromCart,
-    clearCart
+    clearCart,
+    donations = [],           
+    addDonation,              
+    removeDonation,           
+    clearDonations
   } = useAppData();
 
   const [showSwapModal, setShowSwapModal] = useState(false);
@@ -367,11 +374,20 @@ export default function CartTab() {
     localCartItems.reduce((sum, item) => sum + (item.co2Impact * item.quantity), 0)
   , [localCartItems]);
 
+  const donationsTotal = useMemo(() => 
+    donations.reduce((sum, donation) => sum + donation.price, 0)
+  , [donations]);
+
+  const totalDonationCashback = useMemo(() => 
+    donations.reduce((sum, donation) => sum + (donation.donationDetails?.cashbackPoints || 0), 0)
+  , [donations]);
+
   const avgSustainabilityScore = useMemo(() => {
-    if (localCartItems.length === 0) return 0;
-    const totalScore = localCartItems.reduce((sum, item) => sum + item.sustainabilityScore, 0);
-    return totalScore / localCartItems.length;
-  }, [localCartItems]);
+    const allItems = [...localCartItems, ...donations];
+  if (allItems.length === 0) return 0;
+  const totalScore = allItems.reduce((sum, item) => sum + item.sustainabilityScore, 0);
+  return totalScore / allItems.length;
+}, [localCartItems, donations]);
 
   // AI Cart Optimizer Logic
   const generateAIOptimizations = useCallback((cartItems: ExtendedCartItem[]): AIOptimization[] => {
@@ -708,6 +724,7 @@ export default function CartTab() {
     setShowReceiptModal(false);
     setDigitalReceipt(null);
     clearCart();
+    if (clearDonations) clearDonations();
     setAppliedDiscounts([]);
     setPromoCode('');
     setSwappedItems({}); // Clear swapped items when cart is cleared
@@ -738,8 +755,8 @@ export default function CartTab() {
 
     const discount = getTotalDiscount();
     const tax = (subtotal - discount) * 0.08; // 8% tax
-    const total = subtotal - discount + tax;
-    const ecoPoints = totalEcoPoints;
+    const total = subtotal - discount + tax + donationsTotal;
+    const ecoPoints = totalEcoPoints + totalDonationCashback ;
     
     const newOrder: Order = {
       id: `order_${Date.now()}`,
@@ -758,6 +775,7 @@ export default function CartTab() {
       orderNumber: newOrder.id.replace('order_', 'WMT-'),
       date: new Date(),
       items: localCartItems,
+      donations: donations,
       subtotal,
       discount,
       tax,
@@ -765,6 +783,7 @@ export default function CartTab() {
       paymentMethod: 'Credit Card',
       cardLast4: paymentData.cardNumber.slice(-4),
       ecoPointsEarned: ecoPoints,
+      donationCashbackPoints: totalDonationCashback,
       co2Impact: totalCO2,
       storeInfo: {
         name: 'Walmart EcoConnect',
@@ -772,22 +791,23 @@ export default function CartTab() {
         phone: '(555) 123-4567'
       }
     };
-
+    // Add donationsTotal to the receipt object for easier access in UI
+    receipt.donationsTotal = donationsTotal;
     setDigitalReceipt(receipt);
     setShowReceiptModal(true);
 
     addOrder(newOrder);
-    setUserEcoPoints(prev => prev + ecoPoints);
+    setUserEcoPoints(prev => prev + ecoPoints + totalDonationCashback);
     
     setPaymentProcessing(false);
     setShowPaymentModal(false);
     
     processingAnimation.stopAnimation();
     processingAnimation.setValue(0);
-  }, [localCartItems, getTotalDiscount, subtotal, totalEcoPoints, totalCO2, paymentData, addOrder, setUserEcoPoints, clearCart, processingAnimation]);
+  }, [localCartItems,donations, getTotalDiscount, subtotal,donationsTotal, totalEcoPoints, totalDonationCashback, totalCO2, paymentData, addOrder, setUserEcoPoints, clearCart, processingAnimation]);
 
   const proceedToCheckout = useCallback(() => {
-    if (localCartItems.length === 0) {
+    if (localCartItems.length === 0 && donations.length === 0) {
       Alert.alert('Empty Cart', 'Please add items to your cart before proceeding.');
       return;
     }
@@ -1156,7 +1176,7 @@ Thank you for shopping sustainably!
             <View style={styles.paymentSummaryDivider} />
             <View style={styles.paymentSummaryRow}>
               <Text style={styles.paymentSummaryTotalLabel}>Total</Text>
-              <Text style={styles.paymentSummaryTotalValue}>${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08).toFixed(2)}</Text>
+              <Text style={styles.paymentSummaryTotalValue}>${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08 + donationsTotal).toFixed(2)}</Text>
             </View>
           </View>
 
@@ -1252,7 +1272,7 @@ Thank you for shopping sustainably!
             </View>
           ) : (
             <Text style={styles.paymentButtonText}>
-              Complete Purchase • ${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08).toFixed(2)}
+              Complete Purchase • ${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08 + donationsTotal).toFixed(2)}
             </Text>
           )}
         </TouchableOpacity>
@@ -1342,6 +1362,34 @@ Thank you for shopping sustainably!
                   </View>
                 ))}
               </View>
+              {/* Donations Section */}
+              {digitalReceipt.donations && digitalReceipt.donations.length > 0 && (
+                <View style={styles.donationsSection}>
+                  <Text style={styles.sectionTitle}>❤️ Charitable Donations</Text>
+                  {digitalReceipt.donations.map((donation, idx) => (
+                    <View key={donation.id} style={styles.donationCard}>
+                      <Text style={styles.donationName}>{donation.name}</Text>
+                      <Text style={styles.donationBrand}>{donation.brand}</Text>
+                      <Text style={styles.donationAisle}>📍 {donation.aisle}</Text>
+                      <Text style={styles.donationPrice}>Paid: ${donation.price.toFixed(2)}</Text>
+                      <Text style={styles.donationCashback}>
+                        💰 Cashback: {donation.donationDetails.cashbackPoints} EcoPoints
+                      </Text>
+                      <Text style={styles.donationTo}>
+                        🏥 Donated to: {donation.donationDetails.donatedTo}
+                      </Text>
+                      <Text style={styles.donationImpact}>
+                        💝 {donation.donationDetails.impactMessage}
+                      </Text>
+                    </View>
+                  ))}
+                  <View style={styles.donationSummary}>
+                    <Text style={styles.donationSummaryText}>
+                      Total Donations: ${digitalReceipt.donations.reduce((sum, d) => sum + d.price, 0).toFixed(2)} • Cashback: {digitalReceipt.donationCashbackPoints} EcoPoints
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               {/* Totals */}
               <View style={styles.receiptTotalsSection}>
@@ -1442,6 +1490,69 @@ Thank you for shopping sustainably!
     </Modal>
   ), [showOrdersModal, orders]);
 
+  // Donation Card Component
+  const DonationCard = ({ donation }: { donation: DonationItem }) => (
+    <View style={{
+      backgroundColor: 'white',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderLeftWidth: 4,
+      borderLeftColor: '#DC2626',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 }}>{donation.name}</Text>
+          <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 4 }}>{donation.brand}</Text>
+          <Text style={{ fontSize: 12, color: '#9CA3AF' }}>📍 {donation.aisle}</Text>
+        </View>
+        <View style={{ backgroundColor: '#DC2626', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+          <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>❤️ Donation</Text>
+        </View>
+      </View>
+      <View style={{ backgroundColor: '#FEF2F2', borderRadius: 8, padding: 12, marginBottom: 12 }}>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#DC2626', marginBottom: 4 }}>Paid: ${donation.price.toFixed(2)}</Text>
+        <Text style={{ fontSize: 14, color: '#059669', fontWeight: '600', marginBottom: 4 }}>
+          💰 Cashback: {donation.donationDetails.cashbackPoints} EcoPoints
+        </Text>
+        <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>
+          🏥 Donated to: {donation.donationDetails.donatedTo}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#DC2626', fontStyle: 'italic' }}>
+          💝 {donation.donationDetails.impactMessage}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={{
+          backgroundColor: '#FEE2E2',
+          borderWidth: 1,
+          borderColor: '#FECACA',
+          borderRadius: 8,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          alignItems: 'center',
+        }}
+        onPress={() => {
+          Alert.alert(
+            'Remove Donation?',
+            'Are you sure you want to remove this donation from your order?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Remove', style: 'destructive', onPress: () => removeDonation && removeDonation(donation.id) }
+            ]
+          );
+        }}
+      >
+        <Text style={{ color: '#DC2626', fontSize: 12, fontWeight: '600' }}>Remove</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const DiscountModal = useCallback(() => (
     <Modal visible={showDiscountModal} animationType="slide" presentationStyle="formSheet">
       <SafeAreaView style={styles.modalContainer}>
@@ -1515,23 +1626,24 @@ Thank you for shopping sustainably!
 
   // Calculate final values
   const totalDiscount = getTotalDiscount();
-  const total = subtotal - totalDiscount;
+  const tax = (subtotal - totalDiscount) * 0.08;
+  const total = subtotal - totalDiscount + tax + donationsTotal;
 
-  if (localCartItems.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Cart</Text>
-          <Text style={styles.headerSubtitle}>Your cart is empty</Text>
-        </View>
-        <EmptyCartView />
-      </SafeAreaView>
-    );
-  }
+  if (localCartItems.length === 0 && donations.length === 0) {
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Cart</Text>
+        <Text style={styles.headerSubtitle}>Your cart is empty</Text>
+      </View>
+      <EmptyCartView />
+    </SafeAreaView>
+  );
+}
 
   return (
   <SafeAreaView style={styles.container}>
-    {localCartItems.length === 0 ? (
+    {(localCartItems.length === 0 && donations.length === 0)? (
       <>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>My Cart</Text>
@@ -1616,6 +1728,20 @@ Thank you for shopping sustainably!
               </View>
             </View>
           </View>
+          {/* Donations Section - PLACE IT HERE */}
+          {donations.length > 0 && (
+            <View style={styles.donationsSection}>
+              <Text style={styles.sectionTitle}>❤️ Charitable Donations</Text>
+              {donations.map(donation => (
+                <DonationCard key={donation.id} donation={donation} />
+              ))}
+              <View style={styles.donationSummary}>
+                <Text style={styles.donationSummaryText}>
+                  Total Donations: ${donationsTotal.toFixed(2)} • Cashback: {totalDonationCashback} EcoPoints
+                </Text>
+              </View>
+            </View>
+          )}
           {/* Order Summary */}
           <View style={styles.summarySection}>
             <Text style={styles.summaryTitle}>Order Summary</Text>
@@ -1623,6 +1749,12 @@ Thank you for shopping sustainably!
               <Text style={styles.summaryLabel}>Subtotal</Text>
               <Text style={styles.summaryValue}>${subtotal.toFixed(2)}</Text>
             </View>
+            {donations.length > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Donations</Text>
+                <Text style={styles.summaryValue}>${donationsTotal.toFixed(2)}</Text>
+              </View>
+            )}
             {totalDiscount > 0 && (
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, styles.discountLabel]}>Discounts</Text>
@@ -1634,7 +1766,7 @@ Thank you for shopping sustainably!
               <Text style={styles.summaryTotalLabel}>Total</Text>
               <Text style={styles.summaryTotalValue}>${total.toFixed(2)}</Text>
             </View>
-            <Text style={styles.summaryEcoPoints}>You'll earn {totalEcoPoints} EcoPoints!</Text>
+            <Text style={styles.summaryEcoPoints}>You'll earn {totalEcoPoints + totalDonationCashback} EcoPoints!</Text>
           </View>
         </ScrollView>
         <View style={styles.checkoutSection}>
@@ -1661,6 +1793,84 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  donationSummary: {
+    marginTop: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  donationSummaryText: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  donationPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#DC2626',
+    marginBottom: 4,
+  },
+  donationCashback: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  donationTo: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  donationImpact: {
+    fontSize: 12,
+    color: '#DC2626',
+    fontStyle: 'italic',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  donationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  donationCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  donationBrand: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  donationAisle: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  donationsSection: {
+    backgroundColor: 'white',
+    margin: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   content: {
     flex: 1,
