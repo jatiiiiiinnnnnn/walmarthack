@@ -61,6 +61,18 @@ WGreen is a revolutionary shopping app that helps users make environmentally con
 - **Profile Customization**: Edit personal information and preferences
 - **Notification Controls**: Manage alerts for deals, challenges, and achievements
 
+## UI
+![image](https://github.com/user-attachments/assets/33809bcc-5476-4b2e-ae55-59907be45dc4)  ![image](https://github.com/user-attachments/assets/462f440f-761c-426f-ac88-b425521a1522) ![image](https://github.com/user-attachments/assets/cd9a692b-341c-4c98-a412-ba5719c6283c) ![image](https://github.com/user-attachments/assets/2c7c3dd8-ef94-4943-ab5e-2c705fec3fb3)
+![image](https://github.com/user-attachments/assets/ed7da077-25bc-4922-a35c-a3b36e2141ab) ![image](https://github.com/user-attachments/assets/92a548d3-8080-4cba-b5b1-890548e80cfa) ![image](https://github.com/user-attachments/assets/6dd90b5c-a7d2-482b-81cd-8ee590da9749) ![image](https://github.com/user-attachments/assets/61afd146-563f-47b5-b02e-784302537c86) ![image](https://github.com/user-attachments/assets/51c7bc3c-5dea-475a-9e34-ea29a8dba355)
+
+
+
+
+
+
+
+
+
 ## 🛠️ Technical Implementation
 
 ### Project Structure
