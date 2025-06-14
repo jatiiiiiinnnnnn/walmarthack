@@ -578,29 +578,42 @@ export default function CartTab() {
     setPaymentData(prev => ({ ...prev, [field]: value }));
   }, []);
 
+  // FIXED: Formatting functions that don't cause re-renders
+  const formatCardNumber = useCallback((text: string) => {
+    return text.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
+  }, []);
+
+  const formatExpiryDate = useCallback((text: string) => {
+    return text.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2');
+  }, []);
+
+  const formatNumericOnly = useCallback((text: string) => {
+    return text.replace(/\D/g, '');
+  }, []);
+
   const handleCardNumberChange = useCallback((text: string) => {
-    // Format card number with spaces
-    const formatted = text.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
+    const formatted = formatCardNumber(text);
     updatePaymentField('cardNumber', formatted);
-  }, [updatePaymentField]);
+  }, [formatCardNumber, updatePaymentField]);
 
   const handleExpiryDateChange = useCallback((text: string) => {
-    // Format expiry date as MM/YY
-    const formatted = text.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2');
+    const formatted = formatExpiryDate(text);
     updatePaymentField('expiryDate', formatted);
-  }, [updatePaymentField]);
+  }, [formatExpiryDate, updatePaymentField]);
 
   const handleCvvChange = useCallback((text: string) => {
-    updatePaymentField('cvv', text.replace(/\D/g, ''));
-  }, [updatePaymentField]);
+    const formatted = formatNumericOnly(text);
+    updatePaymentField('cvv', formatted);
+  }, [formatNumericOnly, updatePaymentField]);
 
   const handleCardholderNameChange = useCallback((text: string) => {
     updatePaymentField('cardholderName', text);
   }, [updatePaymentField]);
 
   const handleBillingZipChange = useCallback((text: string) => {
-    updatePaymentField('billingZip', text.replace(/\D/g, ''));
-  }, [updatePaymentField]);
+    const formatted = formatNumericOnly(text);
+    updatePaymentField('billingZip', formatted);
+  }, [formatNumericOnly, updatePaymentField]);
 
   const applyEcoDiscount = useCallback((discountId: string) => {
     const discount = ecoDiscounts.find(d => d.id === discountId);
@@ -786,8 +799,8 @@ export default function CartTab() {
       donationCashbackPoints: totalDonationCashback,
       co2Impact: totalCO2,
       storeInfo: {
-        name: 'Walmart EcoConnect',
-        address: '123 Green Street, Eco City, EC 12345',
+        name: 'WGreen',
+        address: 'Online Store',
         phone: '(555) 123-4567'
       }
     };
@@ -1031,6 +1044,11 @@ Thank you for shopping sustainably!
     </Modal>
   ), [showSwapModal, selectedItem, swapToEcoAlternative]);
 
+  // Memoize calculated values to prevent recalculation
+  const totalDiscount = useMemo(() => getTotalDiscount(), [getTotalDiscount]);
+  const tax = useMemo(() => (subtotal - totalDiscount) * 0.08, [subtotal, totalDiscount]);
+  const total = useMemo(() => subtotal - totalDiscount + tax + donationsTotal, [subtotal, totalDiscount, tax, donationsTotal]);
+
   const EmptyCartView = useCallback(() => (
     <View style={styles.emptyCartContainer}>
       <Text style={styles.emptyCartIcon}>🛒</Text>
@@ -1141,158 +1159,184 @@ Thank you for shopping sustainably!
     </Modal>
   ), [showAIOptimizerModal, aiOptimizations, subtotal, avgSustainabilityScore, localCartItems, totalEcoPoints, handleOptimizationAction]);
 
-  const PaymentModal = useCallback(() => (
-  <Modal visible={showPaymentModal} animationType="slide" presentationStyle="fullScreen">
-    <SafeAreaView style={styles.paymentModalContainer}>
-      <View style={styles.paymentHeader}>
-        <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
-          <Text style={styles.paymentBackButton}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.paymentTitle}>Secure Checkout</Text>
-        
-      </View>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ScrollView style={styles.paymentContent} keyboardShouldPersistTaps="handled">
-          {/* Order Summary */}
-          <View style={styles.paymentSummaryCard}>
-            <Text style={styles.paymentSummaryTitle}>Order Summary</Text>
-            <View style={styles.paymentSummaryRow}>
-              <Text style={styles.paymentSummaryLabel}>Subtotal</Text>
-              <Text style={styles.paymentSummaryValue}>${subtotal.toFixed(2)}</Text>
-            </View>
-            {getTotalDiscount() > 0 && (
-              <View style={styles.paymentSummaryRow}>
-                <Text style={styles.paymentSummaryLabel}>Discounts</Text>
-                <Text style={[styles.paymentSummaryValue, styles.discountText]}>-${getTotalDiscount().toFixed(2)}</Text>
-              </View>
-            )}
-            <View style={styles.paymentSummaryRow}>
-              <Text style={styles.paymentSummaryLabel}>Tax</Text>
-              <Text style={styles.paymentSummaryValue}>${((subtotal - getTotalDiscount()) * 0.08).toFixed(2)}</Text>
-            </View>
-            <View style={styles.paymentSummaryDivider} />
-            <View style={styles.paymentSummaryRow}>
-              <Text style={styles.paymentSummaryTotalLabel}>Total</Text>
-              <Text style={styles.paymentSummaryTotalValue}>${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08 + donationsTotal).toFixed(2)}</Text>
-            </View>
+  const PaymentModal = useCallback(() => {
+    if (!showPaymentModal) return null;
+
+    return (
+      <Modal visible={showPaymentModal} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.paymentModalContainer}>
+          <View style={styles.paymentHeader}>
+            <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+              <Text style={styles.paymentBackButton}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.paymentTitle}>Secure Checkout</Text>
           </View>
-
-          {/* Payment Form */}
-          <View style={styles.paymentFormCard}>
-            <Text style={styles.paymentFormTitle}>💳 Payment Information</Text>
-            
-            <View style={styles.paymentInputGroup}>
-              <Text style={styles.paymentInputLabel}>Card Number</Text>
-              <TextInput
-                style={styles.paymentInput}
-                placeholder="1234 5678 9012 3456"
-                value={paymentData.cardNumber}
-                onChangeText={handleCardNumberChange}
-                keyboardType="numeric"
-                maxLength={19}
-              />
-            </View>
-
-            <View style={styles.paymentInputRow}>
-              <View style={styles.paymentInputHalf}>
-                <Text style={styles.paymentInputLabel}>Expiry Date</Text>
-                <TextInput
-                  style={styles.paymentInput}
-                  placeholder="MM/YY"
-                  value={paymentData.expiryDate}
-                  onChangeText={handleExpiryDateChange}
-                  keyboardType="numeric"
-                  maxLength={5}
-                />
-              </View>
-              <View style={styles.paymentInputHalf}>
-                <Text style={styles.paymentInputLabel}>CVV</Text>
-                <TextInput
-                  style={styles.paymentInput}
-                  placeholder="123"
-                  value={paymentData.cvv}
-                  onChangeText={handleCvvChange}
-                  keyboardType="numeric"
-                  maxLength={4}
-                  secureTextEntry
-                />
-              </View>
-            </View>
-
-            <View style={styles.paymentInputGroup}>
-              <Text style={styles.paymentInputLabel}>Cardholder Name</Text>
-              <TextInput
-                style={styles.paymentInput}
-                placeholder="John Doe"
-                value={paymentData.cardholderName}
-                onChangeText={handleCardholderNameChange}
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.paymentInputGroup}>
-              <Text style={styles.paymentInputLabel}>Billing ZIP Code</Text>
-              <TextInput
-                style={styles.paymentInput}
-                placeholder="12345"
-                value={paymentData.billingZip}
-                onChangeText={handleBillingZipChange}
-                keyboardType="numeric"
-                maxLength={10}
-              />
-            </View>
-          </View>
-
           
-        </ScrollView>
-      </KeyboardAvoidingView>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          >
+            <ScrollView 
+              style={styles.paymentContent} 
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {/* Order Summary */}
+              <View style={styles.paymentSummaryCard}>
+                <Text style={styles.paymentSummaryTitle}>Order Summary</Text>
+                <View style={styles.paymentSummaryRow}>
+                  <Text style={styles.paymentSummaryLabel}>Subtotal</Text>
+                  <Text style={styles.paymentSummaryValue}>${subtotal.toFixed(2)}</Text>
+                </View>
+                {totalDiscount > 0 && (
+                  <View style={styles.paymentSummaryRow}>
+                    <Text style={styles.paymentSummaryLabel}>Discounts</Text>
+                    <Text style={[styles.paymentSummaryValue, styles.discountText]}>-${totalDiscount.toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={styles.paymentSummaryRow}>
+                  <Text style={styles.paymentSummaryLabel}>Tax</Text>
+                  <Text style={styles.paymentSummaryValue}>${tax.toFixed(2)}</Text>
+                </View>
+                {donationsTotal > 0 && (
+                  <View style={styles.paymentSummaryRow}>
+                    <Text style={styles.paymentSummaryLabel}>Donations</Text>
+                    <Text style={styles.paymentSummaryValue}>${donationsTotal.toFixed(2)}</Text>
+                  </View>
+                )}
+                <View style={styles.paymentSummaryDivider} />
+                <View style={styles.paymentSummaryRow}>
+                  <Text style={styles.paymentSummaryTotalLabel}>Total</Text>
+                  <Text style={styles.paymentSummaryTotalValue}>${total.toFixed(2)}</Text>
+                </View>
+              </View>
 
-      {/* Payment Button */}
-      <View style={styles.paymentButtonContainer}>
-        <TouchableOpacity 
-          style={[styles.paymentButton, paymentProcessing && styles.paymentButtonProcessing]}
-          onPress={processPayment}
-          disabled={paymentProcessing}
-        >
-          {paymentProcessing ? (
-            <View style={styles.processingContainer}>
-              <Animated.View style={[
-                styles.processingDot,
-                {
-                  opacity: processingAnimation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.3, 1],
-                  }),
-                },
-              ]} />
-              <Text style={styles.paymentButtonText}>Processing Payment...</Text>
-            </View>
-          ) : (
-            <Text style={styles.paymentButtonText}>
-              Complete Purchase • ${(subtotal - getTotalDiscount() + (subtotal - getTotalDiscount()) * 0.08 + donationsTotal).toFixed(2)}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  </Modal>
-), [
-  showPaymentModal, 
-  subtotal, 
-  getTotalDiscount, 
-  paymentData, 
-  paymentProcessing, 
-  processPayment, 
-  processingAnimation,
-  handleCardNumberChange,
-  handleExpiryDateChange,
-  handleCvvChange,
-  handleCardholderNameChange,
-  handleBillingZipChange
-]);
+              {/* Payment Form */}
+              <View style={styles.paymentFormCard}>
+                <Text style={styles.paymentFormTitle}>💳 Payment Information</Text>
+                
+                <View style={styles.paymentInputGroup}>
+                  <Text style={styles.paymentInputLabel}>Card Number</Text>
+                  <TextInput
+                    style={styles.paymentInput}
+                    placeholder="1234 5678 9012 3456"
+                    value={paymentData.cardNumber}
+                    onChangeText={handleCardNumberChange}
+                    keyboardType="numeric"
+                    maxLength={19}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.paymentInputRow}>
+                  <View style={styles.paymentInputHalf}>
+                    <Text style={styles.paymentInputLabel}>Expiry Date</Text>
+                    <TextInput
+                      style={styles.paymentInput}
+                      placeholder="06/27"
+                      value={paymentData.expiryDate}
+                      onChangeText={handleExpiryDateChange}
+                      keyboardType="numeric"
+                      maxLength={5}
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                    />
+                  </View>
+                  <View style={styles.paymentInputHalf}>
+                    <Text style={styles.paymentInputLabel}>CVV</Text>
+                    <TextInput
+                      style={styles.paymentInput}
+                      placeholder="123"
+                      value={paymentData.cvv}
+                      onChangeText={handleCvvChange}
+                      keyboardType="numeric"
+                      maxLength={4}
+                      secureTextEntry
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.paymentInputGroup}>
+                  <Text style={styles.paymentInputLabel}>Cardholder Name</Text>
+                  <TextInput
+                    style={styles.paymentInput}
+                    placeholder="Jatin Hans"
+                    value={paymentData.cardholderName}
+                    onChangeText={handleCardholderNameChange}
+                    autoCapitalize="words"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                <View style={styles.paymentInputGroup}>
+                  <Text style={styles.paymentInputLabel}>Billing ZIP Code</Text>
+                  <TextInput
+                    style={styles.paymentInput}
+                    placeholder="12345"
+                    value={paymentData.billingZip}
+                    onChangeText={handleBillingZipChange}
+                    keyboardType="numeric"
+                    maxLength={10}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
+
+          {/* Payment Button */}
+          <View style={styles.paymentButtonContainer}>
+            <TouchableOpacity 
+              style={[styles.paymentButton, paymentProcessing && styles.paymentButtonProcessing]}
+              onPress={processPayment}
+              disabled={paymentProcessing}
+            >
+              {paymentProcessing ? (
+                <View style={styles.processingContainer}>
+                  <Animated.View style={[
+                    styles.processingDot,
+                    {
+                      opacity: processingAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.3, 1],
+                      }),
+                    },
+                  ]} />
+                  <Text style={styles.paymentButtonText}>Processing Payment...</Text>
+                </View>
+              ) : (
+                <Text style={styles.paymentButtonText}>
+                  Complete Purchase • ${total.toFixed(2)}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }, [
+    showPaymentModal,
+    subtotal,
+    totalDiscount,
+    tax,
+    total,
+    donationsTotal,
+    paymentData,
+    paymentProcessing,
+    processPayment,
+    processingAnimation,
+    handleCardNumberChange,
+    handleExpiryDateChange,
+    handleCvvChange,
+    handleCardholderNameChange,
+    handleBillingZipChange
+  ]);
 
   const ReceiptModal = useCallback(() => (
     <Modal visible={showReceiptModal} animationType="slide" presentationStyle="formSheet">
@@ -1624,10 +1668,7 @@ Thank you for shopping sustainably!
     </Modal>
   ), [showDiscountModal, userEcoPoints, ecoDiscounts, subtotal, appliedDiscounts, calculateEcoDiscount, applyEcoDiscount]);
 
-  // Calculate final values
-  const totalDiscount = getTotalDiscount();
-  const tax = (subtotal - totalDiscount) * 0.08;
-  const total = subtotal - totalDiscount + tax + donationsTotal;
+  
 
   if (localCartItems.length === 0 && donations.length === 0) {
   return (
@@ -1876,7 +1917,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: '#0071CE',
+    backgroundColor: '#052e16',
     paddingHorizontal: 20,
     paddingVertical: 24,
     paddingTop: 50,
@@ -3096,6 +3137,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    marginBottom: 50,
   },
   receiptThankYouTitle: {
     fontSize: 18,

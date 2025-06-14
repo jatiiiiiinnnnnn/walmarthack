@@ -1,4 +1,5 @@
 // dashboard.tsx - Enhanced Employee Dashboard with Dynamic Features
+import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from "react";
@@ -549,7 +550,7 @@ export default function EmployeeDashboard() {
               onPress={() => navigateToTab('analytics')}
             >
               <View style={[styles.toolIcon, { backgroundColor: '#DBEAFE' }]}>
-                <Text style={styles.toolIconText}>📊</Text>
+                <Feather name="bar-chart-2" color="#047857" size={28} />
               </View>
               <Text style={styles.toolText}>Analytics</Text>
               <Text style={styles.toolSubtext}>Real-time insights & trends</Text>
@@ -560,7 +561,7 @@ export default function EmployeeDashboard() {
               onPress={() => navigateToTab('customers')}
             >
               <View style={[styles.toolIcon, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={styles.toolIconText}>👥</Text>
+                <Feather name="users" color="#047857" size={28} />
               </View>
               <Text style={styles.toolText}>Customers</Text>
               <Text style={styles.toolSubtext}>Manage customer profiles</Text>
@@ -571,7 +572,7 @@ export default function EmployeeDashboard() {
               onPress={() => navigateToTab('tasks')}
             >
               <View style={[styles.toolIcon, { backgroundColor: '#F3E8FF' }]}>
-                <Text style={styles.toolIconText}>📋</Text>
+                <Feather name="check-square" color="#047857" size={28} />
               </View>
               <Text style={styles.toolText}>Tasks</Text>
               <Text style={styles.toolSubtext}>Daily assignments</Text>

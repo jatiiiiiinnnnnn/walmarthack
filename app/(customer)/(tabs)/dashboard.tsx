@@ -12,6 +12,7 @@ import {
   View
 } from 'react-native';
 
+import { router } from 'expo-router';
 import { useAppData } from '../../contexts/AppDataContext';
 
 interface Product {
@@ -634,7 +635,7 @@ export default function EnhancedDashboard() {
         [
           { text: 'Continue Shopping', style: 'default' },
           { text: 'View Cart', onPress: () => {
-            Alert.alert('Navigation', 'Would navigate to cart tab');
+            router.push('./cart');
           }}
         ]
       );
@@ -645,7 +646,7 @@ export default function EnhancedDashboard() {
       // Add to donations (if addDonation function exists in context)
       if (addDonation) {
         addDonation({
-          id: deal.id + '_donation',
+          id: `${deal.id}_donation_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: deal.name,
           brand: deal.brand,
           price: deal.rescuePrice,
@@ -716,7 +717,7 @@ export default function EnhancedDashboard() {
         { text: 'Continue Shopping', style: 'default' },
         { text: 'View Cart', onPress: () => {
           // Navigate to cart - in real app would use router
-          Alert.alert('Navigation', 'Would navigate to cart tab');
+          router.push('./cart');
         }}
       ]
     );
@@ -1281,7 +1282,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 24,
-    backgroundColor: '#0071CE',
+    backgroundColor: '#052e16',
     borderBottomLeftRadius: 5,
     borderBottomRightRadius: 5,
     alignItems: 'center',
@@ -2196,6 +2197,7 @@ const styles = StyleSheet.create({
   modalActions: {
     gap: 12,
     paddingBottom: 20,
+    marginBottom: 10,
   },
   keepOriginalButton: {
     backgroundColor: '#F3F4F6',
@@ -2221,7 +2223,7 @@ const styles = StyleSheet.create({
   },
   chooseEcoText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
   },
 });

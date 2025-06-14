@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#0071CE', // Walmart blue
+    backgroundColor: '#052e16', // Walmart blue
     paddingHorizontal: 20,
     paddingVertical: 20,
     paddingTop: 50,

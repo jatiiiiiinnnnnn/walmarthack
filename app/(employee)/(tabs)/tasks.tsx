@@ -1,5 +1,5 @@
-// app/(employee)/(tabs)/tasks.tsx
-import React, { useState } from 'react';
+// app/(employee)/(tabs)/tasks.tsx - FIXED VERSION
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -26,7 +26,18 @@ interface Task {
     tags: string[];
 }
 
+interface NewTask {
+    title: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+    category: string;
+    dueDate: string;
+    estimatedTime: string;
+    tags: string;
+}
+
 const tasksData: Task[] = [
+  // ... (keep existing tasks data)
   {
     id: 1,
     title: 'Review customer sustainability reports',
@@ -107,79 +118,6 @@ const tasksData: Task[] = [
   }
 ];
 
-export default function TasksTab() {
-  const [tasks, setTasks] = useState(tasksData);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [sortBy, setSortBy] = useState('dueDate');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
-  const [newTask, setNewTask] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    category: 'General',
-    dueDate: '',
-    estimatedTime: '',
-    tags: ''
-  });
-
-  const filteredTasks = tasks
-    .filter(task => {
-      const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           task.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-      const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
-      return matchesSearch && matchesStatus && matchesPriority;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'dueDate':
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-        case 'priority':
-          const priorityOrder: Record<'high' | 'medium' | 'low', number> = { high: 3, medium: 2, low: 1 };
-          return priorityOrder[b.priority as 'high' | 'medium' | 'low'] - priorityOrder[a.priority as 'high' | 'medium' | 'low'];
-        case 'status':
-          return a.status.localeCompare(b.status);
-        default:
-          return 0;
-      }
-    });
-
-  const taskStats = {
-    total: tasks.length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    inProgress: tasks.filter(t => t.status === 'in-progress').length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    overdue: tasks.filter(t => t.status !== 'completed' && new Date(t.dueDate) < new Date()).length
-  };
-
-interface Task {
-    id: number;
-    title: string;
-    description: string;
-    priority: 'high' | 'medium' | 'low';
-    status: 'pending' | 'in-progress' | 'completed' | 'scheduled';
-    category: string;
-    assignedTo: string;
-    dueDate: string;
-    estimatedTime: string;
-    completedAt: string | null;
-    tags: string[];
-}
-
-interface NewTask {
-    title: string;
-    description: string;
-    priority: 'high' | 'medium' | 'low';
-    category: string;
-    dueDate: string;
-    estimatedTime: string;
-    tags: string;
-}
-
 const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
     switch (priority) {
         case 'high': return '#EF4444';
@@ -189,7 +127,60 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
     }
 };
 
-  const getStatusColor = (status: 'pending' | 'in-progress' | 'completed' | 'scheduled') => {
+export default function TasksTab() {
+  const [tasks, setTasks] = useState(tasksData);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPriority, setFilterPriority] = useState('all');
+  const [sortBy, setSortBy] = useState('dueDate');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [newTask, setNewTask] = useState<NewTask>({
+    title: '',
+    description: '',
+    priority: 'medium',
+    category: 'General',
+    dueDate: '',
+    estimatedTime: '',
+    tags: ''
+  });
+
+  // FIXED: Memoize filtered tasks to prevent recalculation
+  const filteredTasks = useMemo(() => {
+    return tasks
+      .filter(task => {
+        const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                             task.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
+        const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+        return matchesSearch && matchesStatus && matchesPriority;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'dueDate':
+            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+          case 'priority':
+            const priorityOrder: Record<'high' | 'medium' | 'low', number> = { high: 3, medium: 2, low: 1 };
+            return priorityOrder[b.priority as 'high' | 'medium' | 'low'] - priorityOrder[a.priority as 'high' | 'medium' | 'low'];
+          case 'status':
+            return a.status.localeCompare(b.status);
+          default:
+            return 0;
+        }
+      });
+  }, [tasks, searchQuery, filterStatus, filterPriority, sortBy]);
+
+  // FIXED: Memoize task stats to prevent recalculation
+  const taskStats = useMemo(() => ({
+    total: tasks.length,
+    pending: tasks.filter(t => t.status === 'pending').length,
+    inProgress: tasks.filter(t => t.status === 'in-progress').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+    overdue: tasks.filter(t => t.status !== 'completed' && new Date(t.dueDate) < new Date()).length
+  }), [tasks]);
+
+  const getStatusColor = useCallback((status: 'pending' | 'in-progress' | 'completed' | 'scheduled') => {
     switch (status) {
       case 'completed': return '#10B981';
       case 'in-progress': return '#3B82F6';
@@ -197,9 +188,9 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
       case 'scheduled': return '#7C3AED';
       default: return '#6B7280';
     }
-  };
+  }, []);
 
-  const updateTaskStatus = (taskId: number, newStatus: 'pending' | 'in-progress' | 'completed' | 'scheduled') => {
+  const updateTaskStatus = useCallback((taskId: number, newStatus: 'pending' | 'in-progress' | 'completed' | 'scheduled') => {
     setTasks(prev => prev.map(task => 
       task.id === taskId 
         ? { 
@@ -210,9 +201,43 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
         : task
     ));
     Alert.alert('Success', `Task status updated to ${newStatus}`);
-  };
+  }, []);
 
-  const addNewTask = () => {
+  // FIXED: Create stable form field handlers
+  const updateNewTaskField = useCallback((field: keyof NewTask, value: string) => {
+    setNewTask(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  // FIXED: Stable input handlers
+  const handleTitleChange = useCallback((value: string) => {
+    updateNewTaskField('title', value);
+  }, [updateNewTaskField]);
+
+  const handleDescriptionChange = useCallback((value: string) => {
+    updateNewTaskField('description', value);
+  }, [updateNewTaskField]);
+
+  const handleCategoryChange = useCallback((value: string) => {
+    updateNewTaskField('category', value);
+  }, [updateNewTaskField]);
+
+  const handleDueDateChange = useCallback((value: string) => {
+    updateNewTaskField('dueDate', value);
+  }, [updateNewTaskField]);
+
+  const handleEstimatedTimeChange = useCallback((value: string) => {
+    updateNewTaskField('estimatedTime', value);
+  }, [updateNewTaskField]);
+
+  const handleTagsChange = useCallback((value: string) => {
+    updateNewTaskField('tags', value);
+  }, [updateNewTaskField]);
+
+  const handlePriorityChange = useCallback((priority: 'high' | 'medium' | 'low') => {
+    updateNewTaskField('priority', priority);
+  }, [updateNewTaskField]);
+
+  const addNewTask = useCallback(() => {
     if (!newTask.title || !newTask.dueDate) {
       Alert.alert('Error', 'Please fill in required fields');
       return;
@@ -222,7 +247,7 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
       id: Date.now(),
       title: newTask.title,
       description: newTask.description,
-      priority: newTask.priority as 'high' | 'medium' | 'low',
+      priority: newTask.priority,
       status: 'pending',
       category: newTask.category,
       assignedTo: 'Sarah Johnson',
@@ -244,9 +269,9 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
     });
     setShowAddTaskModal(false);
     Alert.alert('Success', 'New task created successfully!');
-  };
+  }, [newTask]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
     const diffTime = date.getTime() - today.getTime();
@@ -257,9 +282,10 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
     if (diffDays === -1) return 'Yesterday';
     if (diffDays > 0) return `In ${diffDays} days`;
     return `${Math.abs(diffDays)} days overdue`;
-  };
+  }, []);
 
-  const TaskCard = ({ task }: { task: Task }) => {
+  // FIXED: Memoize TaskCard component
+  const TaskCard = useCallback(({ task }: { task: Task }) => {
     const isOverdue = task.status !== 'completed' && new Date(task.dueDate) < new Date();
     
     return (
@@ -340,9 +366,10 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
         )}
       </TouchableOpacity>
     );
-  };
+  }, [getStatusColor, formatDate, updateTaskStatus]);
 
-  const TaskModal = () => (
+  // FIXED: Memoize TaskModal component
+  const TaskModal = useCallback(() => (
     <Modal visible={showTaskModal} animationType="slide" presentationStyle="formSheet">
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
@@ -444,114 +471,143 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
         )}
       </SafeAreaView>
     </Modal>
-  );
+  ), [showTaskModal, selectedTask, getStatusColor, updateTaskStatus]);
 
-  const AddTaskModal = () => (
-    <Modal visible={showAddTaskModal} animationType="slide" presentationStyle="formSheet">
-      <SafeAreaView style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <TouchableOpacity onPress={() => setShowAddTaskModal(false)}>
-            <Text style={styles.modalBackButton}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.modalTitle}>New Task</Text>
-          <TouchableOpacity onPress={addNewTask}>
-            <Text style={styles.modalSaveButton}>Save</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <ScrollView style={styles.modalContent}>
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Title *</Text>
-            <TextInput
-              style={styles.formInput}
-              value={newTask.title}
-              onChangeText={(value) => setNewTask(prev => ({ ...prev, title: value }))}
-              placeholder="Enter task title"
-            />
+  // FIXED: Optimized AddTaskModal with stable dependencies
+  const AddTaskModal = useCallback(() => {
+    if (!showAddTaskModal) return null;
+
+    return (
+      <Modal visible={showAddTaskModal} animationType="slide" presentationStyle="formSheet">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowAddTaskModal(false)}>
+              <Text style={styles.modalBackButton}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>New Task</Text>
+            <TouchableOpacity onPress={addNewTask}>
+              <Text style={styles.modalSaveButton}>Save</Text>
+            </TouchableOpacity>
           </View>
+          
+          <ScrollView 
+            style={styles.modalContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Title *</Text>
+              <TextInput
+                style={styles.formInput}
+                value={newTask.title}
+                onChangeText={handleTitleChange}
+                placeholder="Enter task title"
+                autoCorrect={false}
+              />
+            </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Description</Text>
-            <TextInput
-              style={[styles.formInput, styles.formTextArea]}
-              value={newTask.description}
-              onChangeText={(value) => setNewTask(prev => ({ ...prev, description: value }))}
-              placeholder="Enter task description"
-              multiline
-              numberOfLines={3}
-            />
-          </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Description</Text>
+              <TextInput
+                style={[styles.formInput, styles.formTextArea]}
+                value={newTask.description}
+                onChangeText={handleDescriptionChange}
+                placeholder="Enter task description"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                autoCorrect={false}
+              />
+            </View>
 
-          <View style={styles.formRow}>
-            <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.formLabel}>Priority</Text>
-              <View style={styles.pickerContainer}>
-                {['low', 'medium', 'high'].map(priority => (
-                  <TouchableOpacity
-                    key={priority}
-                    style={[
-                      styles.pickerOption,
-                      newTask.priority === priority && styles.pickerOptionActive
-                    ]}
-                    onPress={() => setNewTask(prev => ({ ...prev, priority }))}
-                  >
-                    <Text style={[
-                      styles.pickerOptionText,
-                      newTask.priority === priority && styles.pickerOptionTextActive
-                    ]}>
-                      {priority}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.formLabel}>Priority</Text>
+                <View style={styles.pickerContainer}>
+                  {(['low', 'medium', 'high'] as const).map(priority => (
+                    <TouchableOpacity
+                      key={priority}
+                      style={[
+                        styles.pickerOption,
+                        newTask.priority === priority && styles.pickerOptionActive
+                      ]}
+                      onPress={() => handlePriorityChange(priority)}
+                    >
+                      <Text style={[
+                        styles.pickerOptionText,
+                        newTask.priority === priority && styles.pickerOptionTextActive
+                      ]}>
+                        {priority}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.formLabel}>Category</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={newTask.category}
+                  onChangeText={handleCategoryChange}
+                  placeholder="Category"
+                  autoCorrect={false}
+                />
               </View>
             </View>
 
-            <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.formLabel}>Category</Text>
+            <View style={styles.formRow}>
+              <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.formLabel}>Due Date *</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={newTask.dueDate}
+                  onChangeText={handleDueDateChange}
+                  placeholder="YYYY-MM-DD"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.formLabel}>Estimated Time</Text>
+                <TextInput
+                  style={styles.formInput}
+                  value={newTask.estimatedTime}
+                  onChangeText={handleEstimatedTimeChange}
+                  placeholder="2 hours"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Tags (comma separated)</Text>
               <TextInput
                 style={styles.formInput}
-                value={newTask.category}
-                onChangeText={(value) => setNewTask(prev => ({ ...prev, category: value }))}
-                placeholder="Category"
+                value={newTask.tags}
+                onChangeText={handleTagsChange}
+                placeholder="analytics, monthly, reports"
+                autoCorrect={false}
+                autoCapitalize="none"
               />
             </View>
-          </View>
-
-          <View style={styles.formRow}>
-            <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.formLabel}>Due Date *</Text>
-              <TextInput
-                style={styles.formInput}
-                value={newTask.dueDate}
-                onChangeText={(value) => setNewTask(prev => ({ ...prev, dueDate: value }))}
-                placeholder="YYYY-MM-DD"
-              />
-            </View>
-
-            <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.formLabel}>Estimated Time</Text>
-              <TextInput
-                style={styles.formInput}
-                value={newTask.estimatedTime}
-                onChangeText={(value) => setNewTask(prev => ({ ...prev, estimatedTime: value }))}
-                placeholder="2 hours"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.formLabel}>Tags (comma separated)</Text>
-            <TextInput
-              style={styles.formInput}
-              value={newTask.tags}
-              onChangeText={(value) => setNewTask(prev => ({ ...prev, tags: value }))}
-              placeholder="analytics, monthly, reports"
-            />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
-  );
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    );
+  }, [
+    showAddTaskModal,
+    newTask,
+    addNewTask,
+    handleTitleChange,
+    handleDescriptionChange,
+    handleCategoryChange,
+    handleDueDateChange,
+    handleEstimatedTimeChange,
+    handleTagsChange,
+    handlePriorityChange
+  ]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -667,7 +723,9 @@ const getPriorityColor = (priority: 'high' | 'medium' | 'low'): string => {
   );
 }
 
+// ... (keep all existing styles)
 const styles = StyleSheet.create({
+  // ... (keep all existing styles exactly as they are)
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',

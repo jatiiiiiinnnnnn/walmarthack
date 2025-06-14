@@ -142,9 +142,9 @@ export default function EnhancedScanTab() {
 
     // Default scanned product if barcode not found
     const scannedProduct = scannedProducts[barcode] || {
-      name: "Scanned Product",
-      brand: "Unknown Brand",
-      price: 5.99,
+      name: "Plastic Water Bottle",
+      brand: "Bisleri",
+      price: 0.23,
       co2Impact: 8.5,
       sustainabilityScore: 4.0,
       ecoPoints: 0,
@@ -443,7 +443,7 @@ export default function EnhancedScanTab() {
           <TouchableOpacity onPress={() => setShowResults(false)}>
             <Text style={styles.modalBackButton}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.modalTitle}>WiseBuy Analysis Results</Text>
+          <Text style={styles.modalTitle}>Analysis Results</Text>
           <TouchableOpacity onPress={() => {
             setShowResults(false);
             startScanning();
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   header: {
-    backgroundColor: '#059669',
+    backgroundColor: '#052e16',
     paddingHorizontal: 20,
     paddingVertical: 24,
     paddingTop: 50,
@@ -1038,6 +1038,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    marginBottom: 30,
   },
   tipItem: {
     flexDirection: 'row',
@@ -1318,8 +1319,9 @@ const styles = StyleSheet.create({
   },
   addRecommendationButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
+    paddingLeft: 10,
   },
   noRecommendationsCard: {
     backgroundColor: 'white',
