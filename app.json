@@ -4,7 +4,7 @@
     "slug": "walmart",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/logo.png",
     "scheme": "walmart",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
