@@ -1,8 +1,8 @@
-# 🌍 EcoCart - Smart Sustainable Shopping App
+# 🌍 WGreen - Smart Sustainable Shopping App
 
 ## Overview
 
-EcoCart is a revolutionary shopping app that helps users make environmentally conscious purchasing decisions while earning rewards. Built with React Native and Expo, it combines smart shopping with sustainability, featuring an innovative EcoPoints system, AI-powered product scanning, and comprehensive environmental impact tracking.
+WGreen is a revolutionary shopping app that helps users make environmentally conscious purchasing decisions while earning rewards. Built with React Native and Expo, it combines smart shopping with sustainability, featuring an innovative EcoPoints system, AI-powered product scanning, and comprehensive environmental impact tracking.
 
 ## 🚀 Key Features
 
@@ -196,7 +196,7 @@ EXPO_PUBLIC_STORE_ID=walmart-delhi-supercenter
 ```json
 {
   "expo": {
-    "name": "EcoCart",
+    "name": "WGreen",
     "slug": "ecoacart-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -257,7 +257,7 @@ EXPO_PUBLIC_STORE_ID=walmart-delhi-supercenter
 
 ## 🤝 Contributing
 
-We welcome contributions to make EcoCart even better! Please read our contributing guidelines and submit pull requests for:
+We welcome contributions to make WGreen even better! Please read our contributing guidelines and submit pull requests for:
 
 - **Bug fixes**: Help us identify and resolve issues
 - **Feature improvements**: Enhance existing functionality
